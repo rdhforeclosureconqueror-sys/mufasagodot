@@ -1,0 +1,145 @@
+[gd_scene load_steps=14 format=3 uid="uid://cgwe6nuoutqho"]
+
+[sub_resource type="Environment" id="Environment_training"]
+background_mode = 1
+background_color = Color(0.012, 0.016, 0.02, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.48, 0.54, 0.62, 1)
+ambient_light_energy = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Mat_rubber"]
+albedo_color = Color(0.035, 0.042, 0.048, 1)
+roughness = 0.94
+
+[sub_resource type="BoxMesh" id="Mesh_floor"]
+material = SubResource("Mat_rubber")
+size = Vector3(34, 0.3, 26)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.48, 0.5, 0.52, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="Mesh_back_wall"]
+material = SubResource("Mat_wall")
+size = Vector3(34, 10, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="Mat_black"]
+albedo_color = Color(0.015, 0.018, 0.022, 1)
+metallic = 0.25
+roughness = 0.48
+
+[sub_resource type="BoxMesh" id="Mesh_rack_post"]
+material = SubResource("Mat_black")
+size = Vector3(0.25, 4.5, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="Mat_red"]
+albedo_color = Color(0.82, 0.025, 0.045, 1)
+roughness = 0.36
+
+[sub_resource type="BoxMesh" id="Mesh_rack_top"]
+material = SubResource("Mat_red")
+size = Vector3(4.5, 0.25, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="Mat_green"]
+albedo_color = Color(0.02, 0.48, 0.19, 1)
+roughness = 0.42
+
+[sub_resource type="BoxMesh" id="Mesh_zone"]
+material = SubResource("Mat_green")
+size = Vector3(7, 0.04, 7)
+
+[sub_resource type="StandardMaterial3D" id="Mat_gold"]
+albedo_color = Color(0.94, 0.64, 0.1, 1)
+metallic = 0.72
+roughness = 0.25
+
+[sub_resource type="BoxMesh" id="Mesh_elevator"]
+material = SubResource("Mat_gold")
+size = Vector3(5.5, 6, 0.3)
+
+[node name="TrainingFloor" type="Node3D"]
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_training")
+
+[node name="Architecture" type="Node3D" parent="."]
+
+[node name="RubberFloor" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
+mesh = SubResource("Mesh_floor")
+
+[node name="BrandWall" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, -13)
+mesh = SubResource("Mesh_back_wall")
+
+[node name="Equipment" type="Node3D" parent="."]
+
+[node name="RackPlaceholder" type="Node3D" parent="Equipment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -4)
+
+[node name="PostLeft" type="MeshInstance3D" parent="Equipment/RackPlaceholder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.25, 0)
+mesh = SubResource("Mesh_rack_post")
+
+[node name="PostRight" type="MeshInstance3D" parent="Equipment/RackPlaceholder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2.25, 0)
+mesh = SubResource("Mesh_rack_post")
+
+[node name="TopBeam" type="MeshInstance3D" parent="Equipment/RackPlaceholder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.4, 0)
+mesh = SubResource("Mesh_rack_top")
+
+[node name="Branding" type="Node3D" parent="."]
+
+[node name="BrandLabel" type="Label3D" parent="Branding"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.2, -12.6)
+pixel_size = 0.01
+modulate = Color(0.95, 0.68, 0.1, 1)
+text = "UNLEASH DA BEAST
+TRAINING FLOOR"
+font_size = 78
+
+[node name="PoweredByLabel" type="Label3D" parent="Branding"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.2, -12.6)
+pixel_size = 0.009
+modulate = Color(0.88, 0.08, 0.1, 1)
+text = "POWERED BY MELANIN"
+font_size = 44
+outline_size = 8
+
+[node name="Lighting" type="Node3D" parent="."]
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Lighting"]
+transform = Transform3D(0.88294756, 0.39813447, -0.24878204, 0, 0.52991927, 0.8480481, 0.46947157, -0.748782, 0.46789092, 0, 0, 0)
+light_color = Color(0.9, 0.94, 1, 1)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+
+[node name="CameraMarkers" type="Node3D" parent="."]
+
+[node name="OverviewCamera" type="Camera3D" parent="CameraMarkers"]
+transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, 0, 7, 20)
+current = true
+fov = 64.0
+
+[node name="InteractionMarkers" type="Node3D" parent="."]
+
+[node name="MovementAssessmentZone" type="MeshInstance3D" parent="InteractionMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.03, 0)
+mesh = SubResource("Mesh_zone")
+
+[node name="ElevatorPlaceholder" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0, -12.6)
+
+[node name="ElevatorBacking" type="MeshInstance3D" parent="ElevatorPlaceholder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+mesh = SubResource("Mesh_elevator")
+
+[node name="ElevatorLabel" type="Label3D" parent="ElevatorPlaceholder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.5, 0.3)
+pixel_size = 0.009
+text = "FUTURE ELEVATOR"
+font_size = 36

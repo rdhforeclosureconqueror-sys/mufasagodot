@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="WorldRegistry" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/world_registry.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/destinations/city_intro.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/destinations/pyramid_exterior.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/destinations/pyramid_lobby.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/destinations/training_floor.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+destinations = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5")])

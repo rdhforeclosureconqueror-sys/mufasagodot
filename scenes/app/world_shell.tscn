@@ -1,0 +1,68 @@
+[gd_scene load_steps=6 format=3 uid="uid://cwfdjifdwhwg0"]
+
+[ext_resource type="Script" uid="uid://dh78j3m6v8biw" path="res://scripts/world/world_manager.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/world_registry.tres" id="2"]
+[ext_resource type="PackedScene" uid="uid://bgeov07nr1lnl" path="res://scenes/transition/transition_overlay.tscn" id="3"]
+[ext_resource type="Script" uid="uid://ynymksh2itly" path="res://scripts/world/world_shell_debug.gd" id="4"]
+
+[sub_resource type="StyleBoxFlat" id="DebugPanelStyle"]
+bg_color = Color(0.015, 0.02, 0.025, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.08, 0.1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="WorldShell" type="Node"]
+
+[node name="WorldManager" type="Node" parent="."]
+script = ExtResource("1")
+registry = ExtResource("2")
+
+[node name="WorldContainer" type="Node3D" parent="."]
+
+[node name="PersistentUI" type="Node" parent="."]
+
+[node name="TransitionOverlay" parent="PersistentUI" instance=ExtResource("3")]
+
+[node name="DeveloperHUD" type="CanvasLayer" parent="PersistentUI"]
+layer = 80
+
+[node name="Panel" type="PanelContainer" parent="PersistentUI/DeveloperHUD"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 590.0
+offset_bottom = 142.0
+theme_override_styles/panel = SubResource("DebugPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="PersistentUI/DeveloperHUD/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="PersistentUI/DeveloperHUD/Panel/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="PersistentUI/DeveloperHUD/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.72, 0.18, 1)
+theme_override_font_sizes/font_size = 20
+text = "UNLEASH DA BEAST • WORLD FOUNDATION"
+
+[node name="Controls" type="Label" parent="PersistentUI/DeveloperHUD/Panel/Margin/VBox"]
+layout_mode = 2
+text = "TEST ONLY  •  1–4 DIRECT  •  N/P NEXT/PREV  •  U UNKNOWN  •  D DISABLED  •  O OVERLAP"
+
+[node name="Status" type="Label" parent="PersistentUI/DeveloperHUD/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.25, 1, 0.52, 1)
+text = "INITIALIZING"
+
+[node name="WorldShellDebug" type="Node" parent="."]
+script = ExtResource("4")

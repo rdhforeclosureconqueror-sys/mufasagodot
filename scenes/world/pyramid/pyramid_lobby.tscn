@@ -1,0 +1,129 @@
+[gd_scene load_steps=11 format=3 uid="uid://cc7u6r3ter3yf"]
+
+[sub_resource type="Environment" id="Environment_lobby"]
+background_mode = 1
+background_color = Color(0.018, 0.022, 0.028, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.5, 0.43, 0.32, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.055, 0.06, 0.065, 1)
+metallic = 0.22
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="Mesh_floor"]
+material = SubResource("Mat_floor")
+size = Vector3(30, 0.3, 24)
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.74, 0.67, 0.52, 1)
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="Mesh_wall"]
+material = SubResource("Mat_stone")
+size = Vector3(30, 10, 0.5)
+
+[sub_resource type="CylinderMesh" id="Mesh_column"]
+material = SubResource("Mat_stone")
+top_radius = 0.8
+bottom_radius = 1.05
+height = 9.0
+radial_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="Mat_gold"]
+albedo_color = Color(0.92, 0.6, 0.08, 1)
+metallic = 0.8
+roughness = 0.22
+
+[sub_resource type="BoxMesh" id="Mesh_door"]
+material = SubResource("Mat_gold")
+size = Vector3(2.6, 5, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="Mat_red"]
+albedo_color = Color(0.72, 0.025, 0.04, 1)
+roughness = 0.42
+
+[sub_resource type="BoxMesh" id="Mesh_portal"]
+material = SubResource("Mat_red")
+size = Vector3(5.5, 5.5, 0.3)
+
+[node name="PyramidLobby" type="Node3D"]
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lobby")
+
+[node name="Architecture" type="Node3D" parent="."]
+
+[node name="Floor" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
+mesh = SubResource("Mesh_floor")
+
+[node name="BackWall" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, -12)
+mesh = SubResource("Mesh_wall")
+
+[node name="ColumnLeft" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 4.5, -5)
+mesh = SubResource("Mesh_column")
+
+[node name="ColumnRight" type="MeshInstance3D" parent="Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.5, -5)
+mesh = SubResource("Mesh_column")
+
+[node name="Branding" type="Node3D" parent="."]
+
+[node name="BrandLabel" type="Label3D" parent="Branding"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, -11.6)
+pixel_size = 0.01
+modulate = Color(0.95, 0.68, 0.1, 1)
+text = "UNLEASH DA BEAST
+PYRAMID LOBBY"
+font_size = 72
+
+[node name="ElevatorArea" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, -11.5)
+
+[node name="LeftDoor" type="MeshInstance3D" parent="ElevatorArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 2.5, 0.3)
+mesh = SubResource("Mesh_door")
+
+[node name="RightDoor" type="MeshInstance3D" parent="ElevatorArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.35, 2.5, 0.3)
+mesh = SubResource("Mesh_door")
+
+[node name="ElevatorPlaceholderLabel" type="Label3D" parent="ElevatorArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.7, 0.4)
+pixel_size = 0.009
+text = "FUTURE ELEVATOR"
+font_size = 38
+
+[node name="TrainingFloorEntrance" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -11.5)
+
+[node name="Portal" type="MeshInstance3D" parent="TrainingFloorEntrance"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.75, 0.25)
+mesh = SubResource("Mesh_portal")
+
+[node name="PortalLabel" type="Label3D" parent="TrainingFloorEntrance"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0.5)
+pixel_size = 0.009
+text = "TRAINING FLOOR"
+font_size = 42
+outline_size = 8
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5)
+
+[node name="CameraRig" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+transform = Transform3D(1, 0, 0, 0, 0.99026805, 0.1391731, 0, -0.1391731, 0.99026805, 0, 5.5, 17)
+current = true
+fov = 62.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.92718387, 0.30685976, -0.2148655, 0, 0.57357645, 0.81915206, 0.37460658, -0.75950456, 0.5318108, 0, 0, 0)
+light_color = Color(1, 0.82, 0.57, 1)
+light_energy = 1.1
+shadow_enabled = true

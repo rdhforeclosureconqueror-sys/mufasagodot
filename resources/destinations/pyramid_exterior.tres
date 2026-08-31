@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="WorldDestination" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/world_destination.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/world/pyramid/pyramid_exterior.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"pyramid_exterior"
+display_name = "Pyramid Exterior"
+scene = ExtResource("2")
+default_spawn_id = &"MonumentApproach"
+enabled = true
