@@ -1,99 +1,573 @@
-[gd_scene load_steps=10 format=3 uid="uid://c47ebrkb5hvxi"]
+[gd_scene load_steps=34 format=3 uid="uid://c47ebrkb5hvxi"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
+sky_top_color = Color(0.045, 0.1, 0.25, 1)
+sky_horizon_color = Color(0.92, 0.36, 0.16, 1)
+ground_bottom_color = Color(0.02, 0.025, 0.04, 1)
+ground_horizon_color = Color(0.48, 0.16, 0.08, 1)
+sun_angle_max = 18.0
+sun_curve = 0.08
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMat")
 
 [sub_resource type="Environment" id="Environment_city"]
-background_mode = 1
-background_color = Color(0.025, 0.035, 0.065, 1)
+background_mode = 2
+sky = SubResource("Sky")
 ambient_light_source = 3
-ambient_light_color = Color(0.32, 0.4, 0.58, 1)
-ambient_light_energy = 0.75
+ambient_light_color = Color(0.36, 0.42, 0.55, 1)
+ambient_light_energy = 0.68
+reflected_light_source = 2
+tonemap_mode = 2
 
-[sub_resource type="StandardMaterial3D" id="Mat_ground"]
-albedo_color = Color(0.045, 0.055, 0.07, 1)
-roughness = 0.92
+[sub_resource type="StandardMaterial3D" id="Asphalt"]
+albedo_color = Color(0.022, 0.027, 0.034, 1)
+roughness = 0.94
 
-[sub_resource type="BoxMesh" id="Mesh_ground"]
-material = SubResource("Mat_ground")
-size = Vector3(42, 0.3, 38)
+[sub_resource type="StandardMaterial3D" id="ConcreteLight"]
+albedo_color = Color(0.48, 0.5, 0.52, 1)
+roughness = 0.78
 
-[sub_resource type="StandardMaterial3D" id="Mat_building"]
-albedo_color = Color(0.085, 0.105, 0.14, 1)
-metallic = 0.15
-roughness = 0.72
+[sub_resource type="StandardMaterial3D" id="ConcreteDark"]
+albedo_color = Color(0.09, 0.1, 0.115, 1)
+roughness = 0.76
 
-[sub_resource type="BoxMesh" id="Mesh_tower_a"]
-material = SubResource("Mat_building")
-size = Vector3(4, 12, 5)
+[sub_resource type="StandardMaterial3D" id="GlassDarkBlue"]
+albedo_color = Color(0.018, 0.065, 0.12, 1)
+metallic = 0.58
+roughness = 0.2
 
-[sub_resource type="BoxMesh" id="Mesh_tower_b"]
-material = SubResource("Mat_building")
-size = Vector3(5, 18, 6)
+[sub_resource type="StandardMaterial3D" id="GlassBlueGray"]
+albedo_color = Color(0.065, 0.15, 0.22, 1)
+metallic = 0.5
+roughness = 0.24
 
-[sub_resource type="BoxMesh" id="Mesh_tower_c"]
-material = SubResource("Mat_building")
-size = Vector3(6, 9, 4)
+[sub_resource type="StandardMaterial3D" id="GlassBlack"]
+albedo_color = Color(0.01, 0.018, 0.027, 1)
+metallic = 0.7
+roughness = 0.18
 
-[sub_resource type="StandardMaterial3D" id="Mat_pyramid"]
-albedo_color = Color(0.82, 0.73, 0.5, 1)
-roughness = 0.44
+[sub_resource type="StandardMaterial3D" id="Stone"]
+albedo_color = Color(0.55, 0.5, 0.41, 1)
+roughness = 0.6
 
-[sub_resource type="CylinderMesh" id="Mesh_pyramid"]
-material = SubResource("Mat_pyramid")
+[sub_resource type="StandardMaterial3D" id="MetalDark"]
+albedo_color = Color(0.02, 0.025, 0.03, 1)
+metallic = 0.86
+roughness = 0.26
+
+[sub_resource type="StandardMaterial3D" id="Gold"]
+albedo_color = Color(0.94, 0.58, 0.065, 1)
+metallic = 0.78
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.38, 0.16, 0.015, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="StandardMaterial3D" id="Limestone"]
+albedo_color = Color(0.89, 0.78, 0.57, 1)
+metallic = 0.12
+roughness = 0.34
+
+[sub_resource type="StandardMaterial3D" id="WindowsWarm"]
+albedo_color = Color(0.64, 0.29, 0.06, 1)
+roughness = 0.38
+emission_enabled = true
+emission = Color(1, 0.39, 0.075, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="StandardMaterial3D" id="Lane"]
+albedo_color = Color(0.94, 0.72, 0.22, 1)
+roughness = 0.75
+emission_enabled = true
+emission = Color(0.35, 0.18, 0.025, 1)
+emission_energy_multiplier = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Green"]
+albedo_color = Color(0.018, 0.27, 0.09, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Red"]
+albedo_color = Color(0.72, 0.018, 0.035, 1)
+roughness = 0.48
+emission_enabled = true
+emission = Color(0.3, 0.008, 0.012, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="StandardMaterial3D" id="Trunk"]
+albedo_color = Color(0.12, 0.065, 0.035, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="GroundMesh"]
+material = SubResource("ConcreteDark")
+size = Vector3(100, 0.4, 110)
+
+[sub_resource type="BoxMesh" id="BoulevardMesh"]
+material = SubResource("Asphalt")
+size = Vector3(12, 0.08, 100)
+
+[sub_resource type="BoxMesh" id="StreetMesh"]
+material = SubResource("Asphalt")
+size = Vector3(100, 0.07, 9)
+
+[sub_resource type="BoxMesh" id="SidewalkMesh"]
+material = SubResource("ConcreteLight")
+size = Vector3(3.2, 0.16, 100)
+
+[sub_resource type="BoxMesh" id="LaneMesh"]
+material = SubResource("Lane")
+size = Vector3(0.12, 0.025, 7)
+
+[sub_resource type="BoxMesh" id="CrosswalkMesh"]
+material = SubResource("ConcreteLight")
+size = Vector3(0.55, 0.03, 4.6)
+
+[sub_resource type="BoxMesh" id="PlazaMesh"]
+material = SubResource("Stone")
+size = Vector3(22, 0.18, 14)
+
+[sub_resource type="BoxMesh" id="UnitBox"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="CylinderMesh" id="PyramidMesh"]
+material = SubResource("Limestone")
 top_radius = 0.0
-bottom_radius = 7.0
-height = 10.0
+bottom_radius = 24.0
+height = 50.0
 radial_segments = 4
+
+[sub_resource type="CylinderMesh" id="CapMesh"]
+material = SubResource("Gold")
+top_radius = 0.0
+bottom_radius = 5.2
+height = 10.5
+radial_segments = 4
+
+[sub_resource type="TorusMesh" id="AnkhLoop"]
+material = SubResource("Gold")
+inner_radius = 1.45
+outer_radius = 2.7
+rings = 24
+ring_segments = 12
+
+[sub_resource type="BoxMesh" id="AnkhStem"]
+material = SubResource("Gold")
+size = Vector3(1.3, 7.2, 0.85)
+
+[sub_resource type="BoxMesh" id="AnkhArms"]
+material = SubResource("Gold")
+size = Vector3(6.2, 1.25, 0.85)
+
+[sub_resource type="CylinderMesh" id="TreeTrunk"]
+material = SubResource("Trunk")
+top_radius = 0.18
+bottom_radius = 0.25
+height = 2.4
+radial_segments = 6
+
+[sub_resource type="SphereMesh" id="TreeCrown"]
+material = SubResource("Green")
+radius = 1.25
+height = 2.5
+radial_segments = 8
+rings = 4
+
+[sub_resource type="BoxMesh" id="BannerMesh"]
+material = SubResource("Red")
+size = Vector3(0.45, 5, 0.16)
 
 [node name="CityIntro" type="Node3D"]
 
 [node name="Environment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_city")
 
+[node name="CityGeometry" type="Node3D" parent="."]
+
+[node name="Ground" type="MeshInstance3D" parent="CityGeometry"]
+position = Vector3(0, -0.2, -14)
+mesh = SubResource("GroundMesh")
+
+[node name="Roads" type="Node3D" parent="CityGeometry"]
+
+[node name="HeroBoulevard" type="MeshInstance3D" parent="CityGeometry/Roads"]
+position = Vector3(0, 0.04, -10)
+mesh = SubResource("BoulevardMesh")
+
+[node name="CrossStreetNear" type="MeshInstance3D" parent="CityGeometry/Roads"]
+position = Vector3(0, 0.045, 12)
+mesh = SubResource("StreetMesh")
+
+[node name="CrossStreetMid" type="MeshInstance3D" parent="CityGeometry/Roads"]
+position = Vector3(0, 0.045, -18)
+mesh = SubResource("StreetMesh")
+
+[node name="SidewalkLeft" type="MeshInstance3D" parent="CityGeometry/Roads"]
+position = Vector3(-7.6, 0.08, -10)
+mesh = SubResource("SidewalkMesh")
+
+[node name="SidewalkRight" type="MeshInstance3D" parent="CityGeometry/Roads"]
+position = Vector3(7.6, 0.08, -10)
+mesh = SubResource("SidewalkMesh")
+
+[node name="LaneMarkings" type="Node3D" parent="CityGeometry/Roads"]
+
+[node name="Lane01" type="MeshInstance3D" parent="CityGeometry/Roads/LaneMarkings"]
+position = Vector3(0, 0.095, 25)
+mesh = SubResource("LaneMesh")
+
+[node name="Lane02" type="MeshInstance3D" parent="CityGeometry/Roads/LaneMarkings"]
+position = Vector3(0, 0.095, 14)
+mesh = SubResource("LaneMesh")
+
+[node name="Lane03" type="MeshInstance3D" parent="CityGeometry/Roads/LaneMarkings"]
+position = Vector3(0, 0.095, 1)
+mesh = SubResource("LaneMesh")
+
+[node name="Lane04" type="MeshInstance3D" parent="CityGeometry/Roads/LaneMarkings"]
+position = Vector3(0, 0.095, -11)
+mesh = SubResource("LaneMesh")
+
+[node name="Lane05" type="MeshInstance3D" parent="CityGeometry/Roads/LaneMarkings"]
+position = Vector3(0, 0.095, -25)
+mesh = SubResource("LaneMesh")
+
+[node name="Crosswalk" type="Node3D" parent="CityGeometry/Roads"]
+
+[node name="Stripe01" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(-4, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Stripe02" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(-2.4, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Stripe03" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(-0.8, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Stripe04" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(0.8, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Stripe05" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(2.4, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Stripe06" type="MeshInstance3D" parent="CityGeometry/Roads/Crosswalk"]
+position = Vector3(4, 0.105, 8.5)
+mesh = SubResource("CrosswalkMesh")
+
+[node name="Plazas" type="Node3D" parent="CityGeometry"]
+
+[node name="PyramidApproachPlaza" type="MeshInstance3D" parent="CityGeometry/Plazas"]
+position = Vector3(0, 0.09, -38)
+mesh = SubResource("PlazaMesh")
+
+[node name="Skyline" type="Node3D" parent="."]
+
+[node name="ForegroundBuildings" type="Node3D" parent="Skyline"]
+
+[node name="MercuryGlassTower" type="MeshInstance3D" parent="Skyline/ForegroundBuildings"]
+position = Vector3(-25, 12, 7)
+scale = Vector3(9, 24, 8)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassDarkBlue")
+
+[node name="MercuryCrown" type="MeshInstance3D" parent="Skyline/ForegroundBuildings"]
+position = Vector3(-25, 25.5, 7)
+scale = Vector3(6.5, 3, 5.5)
+mesh = SubResource("UnitBox")
+material_override = SubResource("MetalDark")
+
+[node name="TrinityResidential" type="MeshInstance3D" parent="Skyline/ForegroundBuildings"]
+position = Vector3(25, 10, 5)
+scale = Vector3(8, 20, 7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlueGray")
+
+[node name="TrinitySetback" type="MeshInstance3D" parent="Skyline/ForegroundBuildings"]
+position = Vector3(25, 21.5, 5)
+scale = Vector3(5.5, 3, 5)
+mesh = SubResource("UnitBox")
+material_override = SubResource("ConcreteLight")
+
+[node name="MidgroundBuildings" type="Node3D" parent="Skyline"]
+
+[node name="ReunionInspiredTower" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(-17, 16, -14)
+scale = Vector3(5, 32, 5)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlack")
+
+[node name="ReunionCrown" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(-17, 33, -14)
+scale = Vector3(7, 2, 7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="ArtsDistrictTower" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(17, 14, -12)
+scale = Vector3(6, 28, 6)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassDarkBlue")
+
+[node name="ArtsDistrictCrown" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(17, 29, -12)
+scale = Vector3(4, 2.5, 4)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Gold")
+
+[node name="SteppedOfficeBase" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(-32, 6, -16)
+scale = Vector3(10, 12, 8)
+mesh = SubResource("UnitBox")
+material_override = SubResource("ConcreteDark")
+
+[node name="SteppedOfficeTop" type="MeshInstance3D" parent="Skyline/MidgroundBuildings"]
+position = Vector3(-32, 15, -16)
+scale = Vector3(6.5, 6, 6)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlueGray")
+
+[node name="WindowBands" type="Node3D" parent="Skyline"]
+
+[node name="MercuryBand01" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(-25, 8, 11.05)
+scale = Vector3(8.2, 0.35, 0.16)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="MercuryBand02" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(-25, 15, 11.05)
+scale = Vector3(8.2, 0.35, 0.16)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="TrinityBand01" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(25, 7, 8.55)
+scale = Vector3(7.2, 0.32, 0.15)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="TrinityBand02" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(25, 13, 8.55)
+scale = Vector3(7.2, 0.32, 0.15)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="ArtsBand01" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(17, 10, -8.95)
+scale = Vector3(5.3, 0.3, 0.14)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="ArtsBand02" type="MeshInstance3D" parent="Skyline/WindowBands"]
+position = Vector3(17, 19, -8.95)
+scale = Vector3(5.3, 0.3, 0.14)
+mesh = SubResource("UnitBox")
+material_override = SubResource("WindowsWarm")
+
+[node name="BackgroundBuildings" type="Node3D" parent="Skyline"]
+
+[node name="BackgroundWest01" type="MeshInstance3D" parent="Skyline/BackgroundBuildings"]
+position = Vector3(-38, 9, -35)
+scale = Vector3(8, 18, 7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlueGray")
+
+[node name="BackgroundWest02" type="MeshInstance3D" parent="Skyline/BackgroundBuildings"]
+position = Vector3(-28, 12, -38)
+scale = Vector3(6, 24, 6)
+mesh = SubResource("UnitBox")
+material_override = SubResource("ConcreteLight")
+
+[node name="BackgroundEast01" type="MeshInstance3D" parent="Skyline/BackgroundBuildings"]
+position = Vector3(29, 10, -35)
+scale = Vector3(7, 20, 7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassDarkBlue")
+
+[node name="BackgroundEast02" type="MeshInstance3D" parent="Skyline/BackgroundBuildings"]
+position = Vector3(39, 7, -30)
+scale = Vector3(9, 14, 8)
+mesh = SubResource("UnitBox")
+material_override = SubResource("ConcreteDark")
+
+[node name="HeroLandmarks" type="Node3D" parent="."]
+
+[node name="UnleashPyramid" type="Node3D" parent="HeroLandmarks"]
+position = Vector3(0, 0, -48)
+
+[node name="PyramidBody" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(0, 25, 0)
+rotation_degrees = Vector3(0, 45, 0)
+mesh = SubResource("PyramidMesh")
+
+[node name="GoldCap" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(0, 44.75, 0)
+rotation_degrees = Vector3(0, 45, 0)
+mesh = SubResource("CapMesh")
+
+[node name="MonumentalEntrance" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(0, 5.5, 17.2)
+scale = Vector3(5.5, 11, 1.2)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlack")
+
+[node name="EntranceGoldLintel" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(0, 11.2, 17.85)
+scale = Vector3(7, 0.7, 0.3)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Gold")
+
+[node name="EntranceRedAccent" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(-3.15, 5.5, 17.9)
+scale = Vector3(0.35, 10, 0.25)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Red")
+
+[node name="EntranceGreenAccent" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(3.15, 5.5, 17.9)
+scale = Vector3(0.35, 10, 0.25)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Green")
+
+[node name="Ankh" type="Node3D" parent="HeroLandmarks/UnleashPyramid"]
+position = Vector3(0, 55.5, 0)
+
+[node name="Loop" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid/Ankh"]
+position = Vector3(0, 2.9, 0)
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("AnkhLoop")
+
+[node name="Stem" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid/Ankh"]
+position = Vector3(0, -1.8, 0)
+mesh = SubResource("AnkhStem")
+
+[node name="Arms" type="MeshInstance3D" parent="HeroLandmarks/UnleashPyramid/Ankh"]
+position = Vector3(0, 0.45, 0)
+mesh = SubResource("AnkhArms")
+
+[node name="LionsDen" type="Node3D" parent="HeroLandmarks"]
+position = Vector3(-15, 0, 2)
+
+[node name="Building" type="MeshInstance3D" parent="HeroLandmarks/LionsDen"]
+position = Vector3(0, 10, 0)
+scale = Vector3(8, 20, 7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("ConcreteDark")
+
+[node name="GlassCrown" type="MeshInstance3D" parent="HeroLandmarks/LionsDen"]
+position = Vector3(0, 21.5, 0)
+scale = Vector3(6.5, 3, 5.5)
+mesh = SubResource("UnitBox")
+material_override = SubResource("GlassBlack")
+
+[node name="GoldBrow" type="MeshInstance3D" parent="HeroLandmarks/LionsDen"]
+position = Vector3(0, 16, 3.65)
+scale = Vector3(7.2, 0.45, 0.25)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Gold")
+
+[node name="Sign" type="Label3D" parent="HeroLandmarks/LionsDen"]
+position = Vector3(0, 14.8, 3.85)
+text = "LIONS DEN"
+font_size = 64
+outline_size = 12
+modulate = Color(0.96, 0.66, 0.12, 1)
+pixel_size = 0.014
+horizontal_alignment = 1
+
 [node name="SetDressing" type="Node3D" parent="."]
 
-[node name="Ground" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
-mesh = SubResource("Mesh_ground")
+[node name="Trees" type="Node3D" parent="SetDressing"]
 
-[node name="TowerLeftA" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 6, -5)
-mesh = SubResource("Mesh_tower_a")
+[node name="Tree01" type="Node3D" parent="SetDressing/Trees"]
+position = Vector3(-9.5, 0, 20)
 
-[node name="TowerLeftB" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 9, -13)
-mesh = SubResource("Mesh_tower_b")
+[node name="Trunk" type="MeshInstance3D" parent="SetDressing/Trees/Tree01"]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("TreeTrunk")
 
-[node name="TowerRightA" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 4.5, -6)
-mesh = SubResource("Mesh_tower_c")
+[node name="Crown" type="MeshInstance3D" parent="SetDressing/Trees/Tree01"]
+position = Vector3(0, 3.25, 0)
+mesh = SubResource("TreeCrown")
 
-[node name="TowerRightB" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 9, -15)
-mesh = SubResource("Mesh_tower_b")
+[node name="Tree02" type="Node3D" parent="SetDressing/Trees"]
+position = Vector3(9.5, 0, 20)
 
-[node name="DistantPyramid" type="MeshInstance3D" parent="SetDressing"]
-transform = Transform3D(0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, 0.70710677, 0, 5, -24)
-mesh = SubResource("Mesh_pyramid")
+[node name="Trunk" type="MeshInstance3D" parent="SetDressing/Trees/Tree02"]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("TreeTrunk")
+
+[node name="Crown" type="MeshInstance3D" parent="SetDressing/Trees/Tree02"]
+position = Vector3(0, 3.25, 0)
+mesh = SubResource("TreeCrown")
+
+[node name="Tree03" type="Node3D" parent="SetDressing/Trees"]
+position = Vector3(-9.5, 0, -3)
+
+[node name="Trunk" type="MeshInstance3D" parent="SetDressing/Trees/Tree03"]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("TreeTrunk")
+
+[node name="Crown" type="MeshInstance3D" parent="SetDressing/Trees/Tree03"]
+position = Vector3(0, 3.25, 0)
+mesh = SubResource("TreeCrown")
+
+[node name="Tree04" type="Node3D" parent="SetDressing/Trees"]
+position = Vector3(9.5, 0, -3)
+
+[node name="Trunk" type="MeshInstance3D" parent="SetDressing/Trees/Tree04"]
+position = Vector3(0, 1.2, 0)
+mesh = SubResource("TreeTrunk")
+
+[node name="Crown" type="MeshInstance3D" parent="SetDressing/Trees/Tree04"]
+position = Vector3(0, 3.25, 0)
+mesh = SubResource("TreeCrown")
+
+[node name="PyramidApproachAccents" type="Node3D" parent="SetDressing"]
+
+[node name="RedBanner" type="MeshInstance3D" parent="SetDressing/PyramidApproachAccents"]
+position = Vector3(-9, 2.5, -35)
+mesh = SubResource("BannerMesh")
+
+[node name="GreenBanner" type="MeshInstance3D" parent="SetDressing/PyramidApproachAccents"]
+position = Vector3(9, 2.5, -35)
+mesh = SubResource("BannerMesh")
+material_override = SubResource("Green")
 
 [node name="PyramidReveal" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, -24)
+position = Vector3(0, 35, -48)
 
 [node name="CinematicCameraRig" type="Node3D" parent="."]
 
 [node name="Camera3D" type="Camera3D" parent="CinematicCameraRig"]
-transform = Transform3D(1, 0, 0, 0, 0.99254614, 0.12186935, 0, -0.12186935, 0.99254614, 0, 5.5, 18)
+position = Vector3(0, 10, 35)
+rotation_degrees = Vector3(10, 0, 0)
 current = true
+fov = 64.0
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.8480481, 0.3938068, -0.35458517, 0, 0.66913056, 0.74314487, 0.52991927, -0.63022256, 0.5674549, 0, 0, 0)
-light_color = Color(1, 0.82, 0.64, 1)
-light_energy = 1.15
+rotation_degrees = Vector3(-42, -32, 0)
+light_color = Color(1, 0.69, 0.42, 1)
+light_energy = 1.45
 shadow_enabled = true
+directional_shadow_max_distance = 120.0
+
+[node name="PyramidRimLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 37, -39)
+light_color = Color(1, 0.42, 0.08, 1)
+light_energy = 3.0
+omni_range = 35.0
+shadow_enabled = false
 
 [node name="DestinationLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.5, -18)
+position = Vector3(0, 4.8, -33)
 pixel_size = 0.012
-modulate = Color(0.95, 0.78, 0.24, 1)
-text = "CITY INTRO
-THE PYRAMID AWAITS"
-font_size = 64
-outline_size = 10
+modulate = Color(0.95, 0.74, 0.24, 1)
+text = "DOWNTOWN DALLAS
+UNLEASH DA BEAST WORLD"
+font_size = 58
+outline_size = 12
+horizontal_alignment = 1
