@@ -1,0 +1,14 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Generated exports and transient editor/runtime output
+/build/
+*.tmp
+*.log
+
+# Local tool connection configuration
+/.mcp.json
+
+# Original download archive; extracted project assets remain tracked
+/infernus__deadlock_hero_model.zip

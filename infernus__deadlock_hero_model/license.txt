@@ -1,0 +1,11 @@
+Model Information:
+* title:	Infernus | DEADLOCK Hero Model
+* source:	https://sketchfab.com/3d-models/infernus-deadlock-hero-model-e4d0e6d6a1d3415682c4da568f4a90de
+* author:	gettan (https://sketchfab.com/kill6lucius)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Infernus | DEADLOCK Hero Model" (https://sketchfab.com/3d-models/infernus-deadlock-hero-model-e4d0e6d6a1d3415682c4da568f4a90de) by gettan (https://sketchfab.com/kill6lucius) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
