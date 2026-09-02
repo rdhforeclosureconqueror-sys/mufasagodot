@@ -1,0 +1,1 @@
+# Keep Blender authoring iterations outside Godot's runtime asset import scan.

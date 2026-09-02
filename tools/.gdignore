@@ -1,0 +1,1 @@
+# Keep local build and authoring tools outside Godot's runtime asset import scan.

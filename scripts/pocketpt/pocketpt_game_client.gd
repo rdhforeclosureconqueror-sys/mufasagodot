@@ -3,6 +3,7 @@ extends Node
 
 signal connection_state_changed(state: Dictionary)
 signal bootstrap_accepted(bootstrap: Dictionary)
+signal session_ending()
 
 const PROTOCOL_VERSION := 1
 const EXPECTED_EXPERIENCE := "PUSH_UP_ARENA"
@@ -30,7 +31,8 @@ var connection_state: Dictionary = {
 	"display_name": "",
 	"member_id_short": "",
 	"experience": "",
-	"challenge_id": ""
+	"challenge_id": "",
+	"avatar_state": "PENDING"
 }
 
 var bootstrap: Dictionary = {}
@@ -172,6 +174,7 @@ func report_error(error_code: String) -> void:
 	_post_error_to_parent(error_code)
 
 func request_exit() -> bool:
+	session_ending.emit()
 	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
 		return false
 	var payload := {
@@ -198,6 +201,7 @@ func debug_validate_mock() -> Dictionary:
 			"session": {"id": "mock-session", "expiresAt": "2099-01-01T00:00:00Z"},
 			"member": {"id": "mock-member", "displayName": "PocketPT Member"},
 			"avatar": null,
+			"avatarState": {"status": "FALLBACK", "reason": "AVATAR_NOT_CONFIGURED", "fallback": "DEFAULT_AVATAR"},
 			"experience": {"type": "PUSH_UP_ARENA", "challengeId": "push_up"},
 			"api": {"baseUrl": "/api/game"}
 		}
@@ -254,13 +258,25 @@ func _safe_state_from_bootstrap(payload: Dictionary) -> Dictionary:
 	var member: Dictionary = payload["member"]
 	var experience: Dictionary = payload["experience"]
 	var member_id := str(member.get("id", ""))
+	var avatar_state_value := "UNSPECIFIED"
+	var avatar_state = payload.get("avatarState")
+	if avatar_state is Dictionary:
+		avatar_state_value = str(avatar_state.get("status", "UNSPECIFIED"))
 	return {
 		"protocol_version": int(payload.get("protocolVersion", 0)),
 		"display_name": str(member.get("displayName", "PocketPT Member")),
 		"member_id_short": _short_member_id(member_id),
 		"experience": str(experience.get("type", "")),
-		"challenge_id": str(experience.get("challengeId", ""))
+		"challenge_id": str(experience.get("challengeId", "")),
+		"avatar_state": avatar_state_value
 	}
+
+func get_avatar_descriptor() -> Variant:
+	return bootstrap.get("avatar")
+
+func get_avatar_state() -> Dictionary:
+	var value = bootstrap.get("avatarState")
+	return value.duplicate(true) if value is Dictionary else {}
 
 func _short_member_id(value: String) -> String:
 	if value.length() <= 10:
