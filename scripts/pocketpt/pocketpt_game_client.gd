@@ -193,6 +193,11 @@ func request_exit() -> bool:
 """ % serialized_literal
 	return JavaScriptBridge.eval(script) == true
 
+func invalidate_session(error_code := "ARENA_SESSION_INVALID") -> void:
+	bootstrap.clear()
+	session_ending.emit()
+	report_error(error_code)
+
 func debug_validate_mock() -> Dictionary:
 	var fixture := {
 		"ok": true,

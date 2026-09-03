@@ -265,7 +265,22 @@ func _build_mat_area(origin: Vector3) -> void:
 	mats.name = "ExerciseMatArea"
 	mats.position = origin
 	add_child(mats)
-	_box("ExerciseMat", Vector3(1.3, 0.035, 3.0), Vector3.ZERO, _material(Color(0.12, 0.16, 0.20), 0.0, 0.88), mats)
+	var arrival := Marker3D.new()
+	arrival.name = "PocketPTMatArrival"
+	arrival.position = Vector3(0.0, 0.0, -2.0)
+	arrival.add_to_group("pocketpt_mat_target")
+	mats.add_child(arrival)
+	var mat_body := StaticBody3D.new()
+	mat_body.name = "ExerciseMatSelectable"
+	mat_body.add_to_group("pocketpt_mat")
+	mats.add_child(mat_body)
+	_box("ExerciseMat", Vector3(1.3, 0.035, 3.0), Vector3.ZERO, _material(Color(0.12, 0.16, 0.20), 0.0, 0.88), mat_body)
+	var mat_collision := CollisionShape3D.new()
+	var mat_shape := BoxShape3D.new()
+	mat_shape.size = Vector3(1.3, 0.05, 3.0)
+	mat_collision.shape = mat_shape
+	mat_collision.position.y = 0.025
+	mat_body.add_child(mat_collision)
 	_sphere("MedicineBall", 0.38, Vector3(1.4, 0.39, -0.8), _material(BRAND_RED, 0.0, 0.72), mats)
 	_sphere("StabilityBall", 0.62, Vector3(1.65, 0.63, 1.0), _material(Color(0.16, 0.20, 0.25), 0.0, 0.62), mats)
 

@@ -2,6 +2,8 @@ class_name PocketPTAvatarLoader
 extends Node
 
 signal avatar_state_changed(state: Dictionary)
+signal avatar_mounted(visual_root: Node3D)
+signal fallback_activated(reason: String)
 
 const ASSET_PATH := "/api/game/avatar/asset"
 const MAX_AVATAR_BYTES := 32 * 1024 * 1024
@@ -387,6 +389,7 @@ func _mount_imported(imported: Node, generation: int, member_id: String, cache_k
 		"floor_offset": floor_offset,
 		"facing": "SOURCE_FORWARD_UNVERIFIED"
 	})
+	avatar_mounted.emit(wrapper)
 
 func _calculate_bounds(root: Node3D) -> AABB:
 	var combined := AABB()
@@ -442,6 +445,7 @@ func _show_fallback(reason: String, error_code: String, failure_stage := "descri
 		"fallback_reason": reason,
 		"error_code": error_code
 	})
+	fallback_activated.emit(reason)
 
 func _validate_fallback_state(candidate: Variant) -> String:
 	if not candidate is Dictionary:

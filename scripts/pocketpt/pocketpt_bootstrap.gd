@@ -1,10 +1,12 @@
 extends Node
 
 const AvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_avatar_loader.gd")
+const PhoneFlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow.gd")
 
 var client: PocketPTGameClient
 var debug_ui: PocketPTBridgeDebug
 var avatar_loader: Node
+var phone_flow: Node
 
 func _ready() -> void:
 	name = "PocketPTBootstrap"
@@ -25,5 +27,12 @@ func _ready() -> void:
 	add_child(avatar_loader)
 	avatar_loader.bind(client, visual_mount, fallback_visual)
 	debug_ui.bind_avatar_loader(avatar_loader)
+
+	var player := current_scene.get_node_or_null("player") as GymPlayerController
+	if player != null:
+		phone_flow = PhoneFlowScript.new()
+		phone_flow.name = "PocketPTPhoneFlow"
+		add_child(phone_flow)
+		phone_flow.bind(client, player, avatar_loader)
 
 	client.call_deferred("initialize")
