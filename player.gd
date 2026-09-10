@@ -84,8 +84,10 @@ func start_route(target: Vector3) -> bool:
 		return false
 	_remote_direction = Vector2.ZERO
 	_remote_lease_deadline_ms = 0
-	_route_target = target
-	navigation_agent.target_position = target
+	var navigation_map := navigation_agent.get_navigation_map()
+	var resolved_target := NavigationServer3D.map_get_closest_point(navigation_map, target)
+	_route_target = resolved_target
+	navigation_agent.target_position = resolved_target
 	_route_active = true
 	return true
 
@@ -108,8 +110,12 @@ func _resolve_movement() -> Dictionary:
 		offset.y = 0.0
 		var target_offset := _route_target - global_position
 		target_offset.y = 0.0
-		if target_offset.length() <= mat_arrival_distance:
+		var within_arrival_distance := target_offset.length() <= mat_arrival_distance
+
+		if within_arrival_distance:
 			_route_active = false
+			velocity.x = 0.0
+			velocity.z = 0.0
 			route_finished.emit(true)
 			return {"direction": Vector3.ZERO, "source": "AUTO"}
 		return {"direction": offset.normalized(), "source": "AUTO"}
