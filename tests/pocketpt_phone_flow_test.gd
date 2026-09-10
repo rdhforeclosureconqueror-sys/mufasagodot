@@ -2,11 +2,13 @@ extends SceneTree
 
 const FlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow.gd")
 const PlayerScript = preload("res://player.gd")
+const AvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_avatar_loader.gd")
 
 var failures: Array[String] = []
 var player: GymPlayerController
 var flow: PocketPTPhoneFlow
 var mat: Marker3D
+var outbound: Array[Dictionary] = []
 
 func _initialize() -> void:
 	player = PlayerScript.new()
@@ -20,6 +22,9 @@ func _initialize() -> void:
 	flow = FlowScript.new()
 	root.add_child(flow)
 	flow._player = player
+	flow._avatar_loader = AvatarLoaderScript.new()
+	root.add_child(flow._avatar_loader)
+	flow.bridge_message_prepared.connect(func(payload: Dictionary): outbound.append(payload))
 	mat = Marker3D.new()
 	mat.position = Vector3(2.0, 0.0, 0.0)
 	root.add_child(mat)
@@ -33,8 +38,17 @@ func _run() -> void:
 	_expect(flow.state["request_id"] == "test-flow", "request scope stored")
 	_expect(flow.state["incoming_sequence"] == 1, "incoming request sequence stored")
 	_expect(flow.state["outgoing_sequence"] == 1, "capability response uses independent outgoing sequence")
+	_expect(outbound.size() == 1 and outbound[0].get("event") == "ARENA_FLOW_CAPABILITIES", "capability response is prepared for the parent")
+	_expect(outbound[0].get("capabilities") == {"contextLock": true, "touchNavigation": true, "matApproach": false, "pushUpTransition": false}, "prepared capabilities are truthful")
 	_expect(flow.capabilities() == {"contextLock": true, "touchNavigation": true, "matApproach": false, "pushUpTransition": false}, "truthful capabilities before navigation synchronization")
 	_expect(not flow.ingest_message_for_test(request), "duplicate request does not reset channel")
+	var diagnostic_request := {"type": "POCKETPT_GODOT_BRIDGE", "protocolVersion": 1, "event": "DIAGNOSTICS_REQUEST", "diagnosticVersion": 1, "requestId": "diagnostic-test"}
+	_expect(flow.ingest_message_for_test(diagnostic_request), "diagnostic reporter request accepted")
+	var diagnostic_payloads := outbound.filter(func(payload: Dictionary): return payload.get("event") == "DIAGNOSTIC")
+	_expect(not diagnostic_payloads.is_empty(), "diagnostic reporter prepares parent evidence")
+	_expect(diagnostic_payloads[0].get("stage") == "CHALLENGE_STATE" and diagnostic_payloads[0].get("status") == "NOT_CONNECTED", "reporter proves connection without false PASS")
+	_expect(diagnostic_payloads.any(func(payload: Dictionary): return payload.get("stage") == "MAT_APPROACH"), "mat approach evidence is reported")
+	_expect(diagnostic_payloads.any(func(payload: Dictionary): return payload.get("stage") == "GHOST_PLAYBACK" and payload.get("status") == "SKIP"), "unavailable ghost playback is reported truthfully")
 
 	var set_context := _control(2, "LOCKED", "SET_CONTEXT")
 	_expect(flow.ingest_message_for_test(set_context), "locked context accepted")
@@ -81,6 +95,7 @@ func _run() -> void:
 	flow.queue_free()
 	mat.queue_free()
 	client.queue_free()
+	flow._avatar_loader.queue_free()
 	if failures.is_empty():
 		print("POCKETPT_PHONE_FLOW_TEST: PASS")
 		quit(0)

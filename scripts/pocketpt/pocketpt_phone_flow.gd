@@ -2,6 +2,7 @@ class_name PocketPTPhoneFlow
 extends Node
 
 signal flow_state_changed(state: Dictionary)
+signal bridge_message_prepared(payload: Dictionary)
 
 const PROTOCOL_VERSION := 1
 const FLOW_VERSION := 1
@@ -14,7 +15,7 @@ const DIRECTIONS := {
 	"MOVE_BACKWARD": Vector2.DOWN
 }
 const CONTEXTS := ["GYM_NAVIGATION", "CAMERA_SETUP", "LOCKED"]
-const DIAGNOSTIC_STAGES := ["AVATAR_DOWNLOAD", "AVATAR_IMPORT", "AVATAR_MOUNT", "AVATAR_FALLBACK", "ANIMATION_IDLE", "LOCOMOTION", "CHALLENGE_STATE"]
+const DIAGNOSTIC_STAGES := ["AVATAR_DOWNLOAD", "AVATAR_IMPORT", "AVATAR_MOUNT", "AVATAR_FALLBACK", "ANIMATION_IDLE", "LOCOMOTION", "MAT_APPROACH", "CHALLENGE_STATE", "GHOST_PLAYBACK"]
 
 var state: Dictionary = {
 	"connected": false,
@@ -223,6 +224,7 @@ func _send_flow(event_name: String, extra: Dictionary = {}) -> bool:
 	return _post_to_parent(payload)
 
 func _post_to_parent(payload: Dictionary) -> bool:
+	bridge_message_prepared.emit(payload.duplicate(true))
 	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
 		return false
 	var literal := JSON.stringify(JSON.stringify(payload))
@@ -243,6 +245,7 @@ func _on_mat_selected() -> void:
 func _on_route_finished(arrived: bool) -> void:
 	if arrived and str(state["pending_command"]) == "GO_TO_MAT":
 		_send_flow("ARENA_FLOW_EVENT", {"replyTo": _pending_reply_to, "result": "AT_MAT"})
+		_report_diagnostic("MAT_APPROACH", "PASS")
 		state["pending_command"] = ""
 		_pending_reply_to = 0
 		_publish()
@@ -345,17 +348,27 @@ func _on_avatar_state_changed(avatar: Dictionary) -> void:
 		_disconnect_flow()
 	if _diagnostic_request_id.is_empty():
 		return
-	if str(avatar.get("download", "")) == "PASS": _report_diagnostic("AVATAR_DOWNLOAD", "PASS")
-	if str(avatar.get("import", "")) == "PASS": _report_diagnostic("AVATAR_IMPORT", "PASS")
-	if str(avatar.get("mount", "")) == "PASS": _report_diagnostic("AVATAR_MOUNT", "PASS")
+	_report_avatar_stage("AVATAR_DOWNLOAD", str(avatar.get("download", "")))
+	_report_avatar_stage("AVATAR_IMPORT", str(avatar.get("import", "")))
+	_report_avatar_stage("AVATAR_MOUNT", str(avatar.get("mount", "")))
 	if bool(avatar.get("fallback", false)): _report_diagnostic("AVATAR_FALLBACK", "PASS")
 
+func _report_avatar_stage(stage: String, evidence: String) -> void:
+	if evidence == "PASS":
+		_report_diagnostic(stage, "PASS")
+	elif evidence == "FAIL":
+		_report_diagnostic(stage, "FAIL")
+
 func _report_current_diagnostics() -> void:
+	# Send a valid non-success result first so the parent can prove the reporter
+	# connection without inferring that any downstream runtime stage passed.
+	_report_diagnostic("CHALLENGE_STATE", "NOT_CONNECTED")
 	var avatar := _avatar_loader.avatar_state
 	_on_avatar_state_changed(avatar)
 	_report_diagnostic("ANIMATION_IDLE", "PASS" if not _idle_clip.is_empty() else "NOT_CONNECTED")
 	_report_diagnostic("LOCOMOTION", "PASS" if not _walk_clip.is_empty() else "NOT_CONNECTED")
-	_report_diagnostic("CHALLENGE_STATE", "NOT_CONNECTED")
+	_report_diagnostic("MAT_APPROACH", "WAITING" if bool(capabilities()["matApproach"]) else "NOT_CONNECTED")
+	_report_diagnostic("GHOST_PLAYBACK", "SKIP")
 	if not bool(avatar.get("fallback", false)):
 		_report_diagnostic("AVATAR_FALLBACK", "SKIP")
 
