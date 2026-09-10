@@ -13,6 +13,9 @@ func _initialize() -> void:
 	var spring_arm := SpringArm3D.new()
 	spring_arm.name = "SpringArm3D"
 	player.add_child(spring_arm)
+	var agent := NavigationAgent3D.new()
+	agent.name = "NavigationAgent3D"
+	player.add_child(agent)
 	root.add_child(player)
 	flow = FlowScript.new()
 	root.add_child(flow)
@@ -30,7 +33,7 @@ func _run() -> void:
 	_expect(flow.state["request_id"] == "test-flow", "request scope stored")
 	_expect(flow.state["incoming_sequence"] == 1, "incoming request sequence stored")
 	_expect(flow.state["outgoing_sequence"] == 1, "capability response uses independent outgoing sequence")
-	_expect(flow.capabilities() == {"contextLock": true, "touchNavigation": true, "matApproach": true, "pushUpTransition": false}, "truthful capabilities")
+	_expect(flow.capabilities() == {"contextLock": true, "touchNavigation": true, "matApproach": false, "pushUpTransition": false}, "truthful capabilities before navigation synchronization")
 	_expect(not flow.ingest_message_for_test(request), "duplicate request does not reset channel")
 
 	var set_context := _control(2, "LOCKED", "SET_CONTEXT")
@@ -49,11 +52,10 @@ func _run() -> void:
 	_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")
 
 	var route := _control(5, "GYM_NAVIGATION", "GO_TO_MAT")
-	_expect(flow.ingest_message_for_test(route), "go-to-mat accepted")
-	_expect(player.is_route_active(), "go-to-mat uses controller route")
+	_expect(not flow.ingest_message_for_test(route), "go-to-mat rejected without a synchronized navigation map")
 	var stop := _control(6, "CAMERA_SETUP", "STOP")
 	_expect(flow.ingest_message_for_test(stop), "STOP accepted independent of context")
-	_expect(not player.is_route_active(), "STOP cancels route")
+	_expect(not player.is_route_active(), "STOP leaves route cancelled")
 	_expect(str(flow.state["pending_command"]).is_empty(), "STOP clears pending navigation acknowledgement")
 
 	var bad_version := _message("ARENA_FLOW_REQUEST", 1)

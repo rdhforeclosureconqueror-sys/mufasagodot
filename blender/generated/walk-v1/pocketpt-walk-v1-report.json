@@ -1,0 +1,35 @@
+{
+  "status": "CANDIDATE_REQUIRES_VISUAL_REVIEW",
+  "generator": "pocketpt_blender_walk_v1.py",
+  "sourceAnimation": null,
+  "avatar": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\reference\\canonical-avatar.glb",
+  "output": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\generated\\walk-v1\\pocketpt-walk-v1.glb",
+  "blend": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\generated\\walk-v1\\pocketpt-walk-v1.blend",
+  "action": "pocketpt_walk_in_place_v1",
+  "fps": 24,
+  "frameRange": [
+    1,
+    25
+  ],
+  "durationSeconds": 1.0,
+  "inPlace": true,
+  "boneMapping": {
+    "hips": "mixamorig:Hips",
+    "spine": "mixamorig:Spine",
+    "left_thigh": "mixamorig:LeftUpLeg",
+    "right_thigh": "mixamorig:RightUpLeg",
+    "left_shin": "mixamorig:LeftLeg",
+    "right_shin": "mixamorig:RightLeg",
+    "left_foot": "mixamorig:LeftFoot",
+    "right_foot": "mixamorig:RightFoot",
+    "left_arm": "mixamorig:LeftArm",
+    "right_arm": "mixamorig:RightArm",
+    "left_forearm": "mixamorig:LeftForeArm",
+    "right_forearm": "mixamorig:RightForeArm"
+  },
+  "limitations": [
+    "first authored gait candidate, not human-validated natural motion",
+    "no inverse-kinematics foot lock in v1",
+    "Godot must synchronize playback speed with controller velocity"
+  ]
+}

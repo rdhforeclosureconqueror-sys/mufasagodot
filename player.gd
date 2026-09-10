@@ -13,6 +13,7 @@ enum NavigationContext { GYM_NAVIGATION, CAMERA_SETUP, LOCKED }
 @export var mat_arrival_distance := 0.35
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
+@onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
 
 var navigation_context := NavigationContext.GYM_NAVIGATION
 var _remote_direction := Vector2.ZERO
@@ -21,6 +22,7 @@ var _route_active := false
 var _route_target := Vector3.ZERO
 var _was_moving := false
 var _last_source := "NONE"
+var last_move_command := "NONE"
 
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -73,15 +75,17 @@ func set_remote_intent(direction: Vector2, valid_for_ms: int) -> bool:
 		return false
 	_route_active = false
 	_remote_direction = direction.limit_length(1.0)
+	last_move_command = "REMOTE"
 	_remote_lease_deadline_ms = Time.get_ticks_msec() + valid_for_ms
 	return true
 
 func start_route(target: Vector3) -> bool:
-	if navigation_context != NavigationContext.GYM_NAVIGATION:
+	if navigation_context != NavigationContext.GYM_NAVIGATION or not navigation_ready():
 		return false
 	_remote_direction = Vector2.ZERO
 	_remote_lease_deadline_ms = 0
 	_route_target = target
+	navigation_agent.target_position = target
 	_route_active = true
 	return true
 
@@ -99,9 +103,12 @@ func _resolve_movement() -> Dictionary:
 	if navigation_context != NavigationContext.GYM_NAVIGATION:
 		return {"direction": Vector3.ZERO, "source": "LOCKED"}
 	if _route_active:
-		var offset := _route_target - global_position
+		var next_position := navigation_agent.get_next_path_position()
+		var offset := next_position - global_position
 		offset.y = 0.0
-		if offset.length() <= mat_arrival_distance:
+		var target_offset := _route_target - global_position
+		target_offset.y = 0.0
+		if target_offset.length() <= mat_arrival_distance:
 			_route_active = false
 			route_finished.emit(true)
 			return {"direction": Vector3.ZERO, "source": "AUTO"}
@@ -115,6 +122,12 @@ func _resolve_movement() -> Dictionary:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	var keyboard_world := transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)
 	return {"direction": keyboard_world.normalized(), "source": "KEYBOARD" if not input_dir.is_zero_approx() else "NONE"}
+
+func navigation_ready() -> bool:
+	return navigation_agent != null and navigation_agent.get_navigation_map().is_valid() and NavigationServer3D.map_get_iteration_id(navigation_agent.get_navigation_map()) > 0
+
+func grounded_state() -> String:
+	return "GROUNDED" if is_on_floor() else "AIRBORNE"
 
 func _try_select_mat(screen_position: Vector2) -> void:
 	if navigation_context != NavigationContext.GYM_NAVIGATION:

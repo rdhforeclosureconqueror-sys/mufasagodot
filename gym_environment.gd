@@ -12,7 +12,6 @@ var mirror_viewport: SubViewport
 
 func _ready() -> void:
 	_build_environment()
-	_build_status_overlay()
 
 func _material(color: Color, metallic := 0.0, roughness := 0.7, emission := Color.BLACK, emission_energy := 1.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -77,6 +76,7 @@ func _build_environment() -> void:
 	var floor_material := _material(RUBBER, 0.0, 0.93)
 	var floor_body := StaticBody3D.new()
 	floor_body.name = "RubberFloor"
+	floor_body.add_to_group("pocketpt_floor_collision")
 	add_child(floor_body)
 	_box("FloorMesh", Vector3(18.0, 0.24, 14.0), Vector3(0, -0.12, 0), floor_material, floor_body)
 	var floor_collision := CollisionShape3D.new()
@@ -97,6 +97,11 @@ func _build_environment() -> void:
 	_box("BrandWall", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, -7.0), wall_material)
 	_box("RightWall", Vector3(0.25, 6.0, 14.0), Vector3(9.0, 2.9, 0), wall_material)
 	_box("EntryWall", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, 7.0), _material(Color(0.60, 0.62, 0.65), 0.0, 0.75))
+	_add_boundary_collision("BrandWallCollision", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, -7.0))
+	_add_boundary_collision("RightWallCollision", Vector3(0.25, 6.0, 14.0), Vector3(9.0, 2.9, 0))
+	_add_boundary_collision("EntryWallCollision", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, 7.0))
+	_add_boundary_collision("MirrorWallCollision", Vector3(0.25, 6.0, 14.0), Vector3(-9.0, 2.9, 0))
+	_build_navigation_region()
 
 	_build_ceiling_lights()
 	_build_mirror_wall()
@@ -301,8 +306,34 @@ func _build_camera() -> void:
 	camera.position = Vector3(2.8, 1.65, 3.8)
 	camera.look_at_from_position(camera.position, Vector3(0, 0.68, 0), Vector3.UP)
 	camera.fov = 48.0
-	camera.current = true
+	camera.current = false
 	add_child(camera)
+
+func _add_boundary_collision(node_name: String, size: Vector3, pos: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = pos
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	add_child(body)
+
+func _build_navigation_region() -> void:
+	var region := NavigationRegion3D.new()
+	region.name = "GymNavigationRegion"
+	region.add_to_group("pocketpt_navigation_region")
+	var navigation_mesh := NavigationMesh.new()
+	navigation_mesh.vertices = PackedVector3Array([
+		Vector3(-8.65, 0.0, -6.65),
+		Vector3(8.65, 0.0, -6.65),
+		Vector3(8.65, 0.0, 6.65),
+		Vector3(-8.65, 0.0, 6.65),
+	])
+	navigation_mesh.add_polygon(PackedInt32Array([0, 3, 2, 1]))
+	region.navigation_mesh = navigation_mesh
+	add_child(region)
 
 func _build_status_overlay() -> void:
 	var layer := CanvasLayer.new()

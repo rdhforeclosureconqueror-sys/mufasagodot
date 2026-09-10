@@ -1,0 +1,4 @@
+# Keep the optional Cesium/3D Tiles native extension out of Godot's automatic
+# resource scan. The project does not reference it, and loading it globally
+# starts its networking/rendering stack even while the Cesium editor plugin is
+# disabled.

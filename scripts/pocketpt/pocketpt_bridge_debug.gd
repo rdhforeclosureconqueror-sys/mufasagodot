@@ -3,172 +3,119 @@ extends CanvasLayer
 
 var client: PocketPTGameClient
 var avatar_loader: Node
-var value_labels: Dictionary = {}
-var panel: PanelContainer
+var phone_flow: Node
+var player: GymPlayerController
+var output: TextEdit
 
 func _ready() -> void:
 	layer = 100
-	_build_ui()
+	var panel := PanelContainer.new()
+	panel.name = "PocketPTConsolidatedDiagnostics"
+	panel.position = Vector2(16, 16)
+	panel.custom_minimum_size = Vector2(470, 610)
+	add_child(panel)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.018, 0.022, 0.03, 0.94)
+	style.border_color = Color(0.92, 0.06, 0.08)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(9)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
+	var stack := VBoxContainer.new()
+	panel.add_child(stack)
+	var title := Label.new()
+	title.text = "POCKETPT PUSH-UP ARENA DIAGNOSTICS"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.24, 0.18))
+	stack.add_child(title)
+	output = TextEdit.new()
+	output.name = "CopyablePipelineDiagnostics"
+	output.editable = false
+	output.custom_minimum_size = Vector2(440, 535)
+	output.add_theme_font_size_override("font_size", 13)
+	output.add_theme_color_override("font_color", Color(0.82, 0.88, 0.95))
+	stack.add_child(output)
 
 func bind_client(value: PocketPTGameClient) -> void:
 	client = value
-	client.connection_state_changed.connect(_on_connection_state_changed)
-	_on_connection_state_changed(client.connection_state)
-
-func _build_ui() -> void:
-	panel = PanelContainer.new()
-	panel.name = "ConnectionDebugPanel"
-	panel.position = Vector2(24, 180)
-	panel.custom_minimum_size = Vector2(480, 590)
-	add_child(panel)
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.03, 0.04, 0.94)
-	style.border_color = Color(0.18, 0.75, 1.0)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 20
-	style.content_margin_right = 20
-	style.content_margin_top = 18
-	style.content_margin_bottom = 18
-	panel.add_theme_stylebox_override("panel", style)
-
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 7)
-	panel.add_child(stack)
-
-	var title := Label.new()
-	title.text = "UNLEASH THE BEAST"
-	title.add_theme_font_size_override("font_size", 25)
-	title.add_theme_color_override("font_color", Color(0.95, 0.12, 0.14))
-	stack.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "POCKETPT WORLD BRIDGE • PHASE 2"
-	subtitle.add_theme_font_size_override("font_size", 14)
-	subtitle.add_theme_color_override("font_color", Color(0.65, 0.72, 0.80))
-	stack.add_child(subtitle)
-
-	var separator := HSeparator.new()
-	stack.add_child(separator)
-
-	_add_row(stack, "connection", "PocketPT Connection:", "INITIALIZING")
-	_add_row(stack, "member", "Member:", "—")
-	_add_row(stack, "member_id", "Member ID:", "—")
-	_add_row(stack, "protocol", "Protocol:", "—")
-	_add_row(stack, "experience", "Experience:", "—")
-	_add_row(stack, "challenge", "Challenge:", "—")
-	_add_row(stack, "bootstrap", "Bootstrap:", "PENDING")
-	_add_row(stack, "handshake", "Parent Handshake:", "PENDING")
-	_add_row(stack, "error", "Safe Error Code:", "—")
-	_add_row(stack, "avatar_descriptor", "Avatar Descriptor:", "PENDING")
-	_add_row(stack, "avatar_download", "Avatar Download:", "PENDING")
-	_add_row(stack, "avatar_import", "Avatar Import:", "PENDING")
-	_add_row(stack, "avatar_mount", "Avatar Mount:", "PENDING")
-	_add_row(stack, "avatar_reason", "Avatar Detail:", "—")
-
-	var note := Label.new()
-	note.name = "ModeNotice"
-	note.text = "Production Web mode uses the scoped PocketPT browser session.\nDesktop runs do not authenticate and cannot report acceptance."
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 12)
-	note.add_theme_color_override("font_color", Color(0.62, 0.67, 0.72))
-	stack.add_child(note)
-
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 10)
-	stack.add_child(buttons)
-	var retry := Button.new()
-	retry.name = "RetryButton"
-	retry.text = "Retry Bootstrap"
-	retry.pressed.connect(_on_retry_pressed)
-	buttons.add_child(retry)
-	var exit := Button.new()
-	exit.name = "ExitArenaButton"
-	exit.text = "Exit Arena"
-	exit.pressed.connect(_on_exit_pressed)
-	buttons.add_child(exit)
-	var retry_avatar := Button.new()
-	retry_avatar.name = "RetryAvatarButton"
-	retry_avatar.text = "Retry Avatar"
-	retry_avatar.pressed.connect(_on_retry_avatar_pressed)
-	buttons.add_child(retry_avatar)
 
 func bind_avatar_loader(value: Node) -> void:
 	avatar_loader = value
-	avatar_loader.avatar_state_changed.connect(_on_avatar_state_changed)
-	_on_avatar_state_changed(avatar_loader.avatar_state)
 
-func _add_row(stack: VBoxContainer, key: String, caption: String, initial: String) -> void:
-	var row := HBoxContainer.new()
-	var name_label := Label.new()
-	name_label.text = caption
-	name_label.custom_minimum_size.x = 170
-	name_label.add_theme_color_override("font_color", Color(0.72, 0.77, 0.84))
-	row.add_child(name_label)
-	var value := Label.new()
-	value.text = initial
-	value.add_theme_color_override("font_color", Color.WHITE)
-	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(value)
-	value_labels[key] = value
-	stack.add_child(row)
+func bind_runtime(flow: Node, controller: GymPlayerController) -> void:
+	phone_flow = flow
+	player = controller
 
-func _on_connection_state_changed(state: Dictionary) -> void:
-	if value_labels.is_empty():
+func _process(_delta: float) -> void:
+	if output == null:
 		return
-	var status := str(state.get("status", "IDLE"))
-	value_labels["connection"].text = status
-	value_labels["member"].text = _display_or_dash(state.get("display_name", ""))
-	value_labels["member_id"].text = _display_or_dash(state.get("member_id_short", ""))
-	var protocol := int(state.get("protocol_version", 0))
-	value_labels["protocol"].text = "v%d" % protocol if protocol > 0 else "—"
-	value_labels["experience"].text = _display_or_dash(state.get("experience", ""))
-	value_labels["challenge"].text = _display_or_dash(state.get("challenge_id", ""))
-	value_labels["bootstrap"].text = "PASS" if bool(state.get("bootstrap_valid", false)) else "PENDING"
-	value_labels["handshake"].text = "PASS" if bool(state.get("parent_handshake", false)) else "PENDING"
-	value_labels["error"].text = _display_or_dash(state.get("error_code", ""))
+	var web := OS.has_feature("web")
+	var connection: Dictionary = client.connection_state if client != null else {}
+	var flow_state: Dictionary = phone_flow.state if phone_flow != null else {}
+	var avatar: Dictionary = avatar_loader.avatar_state if avatar_loader != null else {}
+	var floor_found := not get_tree().get_nodes_in_group("pocketpt_floor_collision").is_empty()
+	var nav_found := not get_tree().get_nodes_in_group("pocketpt_navigation_region").is_empty()
+	var mat_found := not get_tree().get_nodes_in_group("pocketpt_mat_target").is_empty()
+	var mufasa_found := not get_tree().get_nodes_in_group("pocketpt_mufasa").is_empty()
+	var collision_found := player != null and player.get_node_or_null("CollisionShape3D") != null
+	var grounded := player != null and player.is_on_floor()
+	var nav_ready := player != null and player.navigation_ready()
+	var first_failure := "NONE"
+	if player == null: first_failure = "PLAYER CONTROLLER"
+	elif not collision_found: first_failure = "PLAYER COLLISION"
+	elif not floor_found: first_failure = "FLOOR COLLISION"
+	elif not nav_found: first_failure = "NAVIGATION REGION"
+	elif not mufasa_found: first_failure = "MUFASA ASSET"
+	elif web and str(connection.get("status", "")) == "ERROR": first_failure = "POCKETPT PAGE / IFRAME HANDSHAKE"
+	var animation_name := "NONE"
+	if phone_flow != null and phone_flow._animation_player != null:
+		animation_name = str(phone_flow._animation_player.current_animation)
+	var feet_offset := float(avatar.get("floor_offset", 0.0)) - 0.76 if avatar_loader != null else -0.76
+	output.text = """POCKETPT PAGE: %s
+→ IFRAME: %s
+→ GODOT READY: YES
+→ FLOW NEGOTIATION: %s
+→ CONTROL RECEIVED: %s
+→ PLAYER CONTROLLER: %s
+→ COLLISION/GROUND: %s
+→ VELOCITY: %s
+→ LOCOMOTION ANIMATION: %s
+→ NAVIGATION: %s
+→ MAT ARRIVAL: %s
+→ MUFASA ASSET: %s
+→ RENDER: %d FPS
 
-	var success := status == "CONNECTED" and bool(state.get("parent_handshake", false))
-	var color := Color(0.25, 1.0, 0.55) if success else Color(1.0, 0.80, 0.25)
-	if status == "ERROR":
-		color = Color(1.0, 0.28, 0.25)
-	value_labels["connection"].add_theme_color_override("font_color", color)
+PLAYER_BODY_FOUND: %s
+PLAYER_COLLISION_FOUND: %s
+FLOOR_COLLISION_FOUND: %s
+GROUND_CHECK: %s
+PLAYER_GROUNDED: %s
+PLAYER_ROOT_Y: %.3f
+VISUAL_FEET_OFFSET: %.3f
 
-func _display_or_dash(value: Variant) -> String:
-	var text := str(value)
-	return text if not text.is_empty() else "—"
+MOVE_COMMAND_RECEIVED: %s
+MOVE_VECTOR: %s
+CHARACTER_VELOCITY: %s
+ACTIVE_LOCOMOTION: %s
+ANIMATION_PLAYING: %s
+GROUND_STATE: %s
 
-func _on_retry_pressed() -> void:
-	if client:
-		client.fetch_bootstrap()
+FIRST FAILURE: %s""" % [
+		"CONNECTED" if bool(connection.get("bootstrap_valid", false)) else ("DESKTOP TEST" if not web else "PENDING"),
+		"READY" if bool(connection.get("parent_handshake", false)) else ("DESKTOP TEST" if not web else "PENDING"),
+		"CONNECTED" if bool(flow_state.get("connected", false)) else "PENDING", str(flow_state.get("last_action", "NONE")),
+		"FOUND" if player != null else "MISSING", ("GROUNDED" if grounded else "AIRBORNE") if collision_found and floor_found else "MISSING",
+		str(player.velocity if player != null else Vector3.ZERO), animation_name, "READY" if nav_ready else "SYNCING" if nav_found else "MISSING",
+		"ARRIVED" if mat_found and str(flow_state.get("pending_command", "")) == "" and str(flow_state.get("last_action", "")) == "GO_TO_MAT" else "READY" if mat_found else "MISSING",
+		"VISIBLE" if mufasa_found else "MISSING", Engine.get_frames_per_second(), _yes(player != null), _yes(collision_found), _yes(floor_found),
+		"PASS" if grounded else "PENDING", _yes(grounded), player.global_position.y if player != null else 0.0, feet_offset,
+		str(flow_state.get("last_action", "NONE")), str(player._remote_direction if player != null else Vector2.ZERO),
+		str(player.velocity if player != null else Vector3.ZERO), player._last_source if player != null else "NONE",
+		animation_name, player.grounded_state() if player != null else "UNKNOWN", first_failure,
+	]
 
-func _on_retry_avatar_pressed() -> void:
-	if avatar_loader:
-		avatar_loader.retry_avatar()
-
-func _on_avatar_state_changed(state: Dictionary) -> void:
-	if value_labels.is_empty():
-		return
-	value_labels["avatar_descriptor"].text = _display_or_dash(state.get("descriptor", ""))
-	var download := str(state.get("download", ""))
-	var bytes := int(state.get("byte_count", 0))
-	if bytes > 0:
-		download += " (%d bytes)" % bytes
-	value_labels["avatar_download"].text = _display_or_dash(download)
-	var import_text := str(state.get("import", ""))
-	if import_text == "PASS":
-		import_text += " (%d mesh, %d skeleton)" % [int(state.get("mesh_count", 0)), int(state.get("skeleton_count", 0))]
-	value_labels["avatar_import"].text = _display_or_dash(import_text)
-	value_labels["avatar_mount"].text = _display_or_dash(state.get("mount", ""))
-	var detail := str(state.get("error_code", ""))
-	if detail.is_empty():
-		detail = str(state.get("fallback_reason", ""))
-	if detail.is_empty():
-		detail = str(state.get("profile_version_short", ""))
-	value_labels["avatar_reason"].text = _display_or_dash(detail)
-
-func _on_exit_pressed() -> void:
-	if not client or not client.request_exit():
-		if value_labels.has("error"):
-			value_labels["error"].text = PocketPTGameClient.ERROR_PARENT_HANDSHAKE_FAILED
+func _yes(value: bool) -> String:
+	return "YES" if value else "NO"

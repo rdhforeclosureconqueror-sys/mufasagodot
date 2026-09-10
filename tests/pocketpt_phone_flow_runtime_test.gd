@@ -18,10 +18,20 @@ func _initialize() -> void:
 	floor_collision.position.y = -0.1
 	floor.add_child(floor_collision)
 	world.add_child(floor)
+	var region := NavigationRegion3D.new()
+	var navigation_mesh := NavigationMesh.new()
+	navigation_mesh.vertices = PackedVector3Array([Vector3(-5, 0, -5), Vector3(5, 0, -5), Vector3(5, 0, 5), Vector3(-5, 0, 5)])
+	navigation_mesh.add_polygon(PackedInt32Array([0, 3, 2, 1]))
+	region.navigation_mesh = navigation_mesh
+	world.add_child(region)
 	player = PlayerScript.new()
 	var spring_arm := SpringArm3D.new()
 	spring_arm.name = "SpringArm3D"
 	player.add_child(spring_arm)
+	var agent := NavigationAgent3D.new()
+	agent.name = "NavigationAgent3D"
+	agent.path_height_offset = -0.75
+	player.add_child(agent)
 	var player_collision := CollisionShape3D.new()
 	var player_shape := CapsuleShape3D.new()
 	player_shape.height = 1.5
@@ -42,6 +52,8 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	for frame in range(4):
+		await physics_frame
 	var request := _message("ARENA_FLOW_REQUEST", 1)
 	request["experience"] = "PUSH_UP_ARENA"
 	flow.ingest_message_for_test(request)

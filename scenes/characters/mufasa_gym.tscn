@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/characters/mufasa/Mufasa_Fire_Skin.glb" id="1_mufasa"]
+
+[node name="MufasaGym" type="Node3D" groups=["pocketpt_mufasa"]]
+
+[node name="Mufasa_Fire_Skin" parent="." instance=ExtResource("1_mufasa")]

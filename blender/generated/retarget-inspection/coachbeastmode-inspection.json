@@ -1,0 +1,379 @@
+{
+  "status": "READ_ONLY_INSPECTION_COMPLETE",
+  "blend": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\generated\\personal-walk-v1\\coachbeastmode.blend",
+  "scene": "Scene",
+  "sceneFrameRange": [
+    1,
+    250
+  ],
+  "objectCount": 15,
+  "objects": [
+    {
+      "name": "Armature",
+      "type": "ARMATURE",
+      "parent": null,
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Body_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Eye_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "EyeAO_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Eyelash_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Head_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Teeth_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Tongue_Mesh",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "avaturn_hair_0",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "avaturn_shoes_0",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "avaturn_look_0",
+      "type": "MESH",
+      "parent": "Armature",
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Cube",
+      "type": "MESH",
+      "parent": null,
+      "hiddenViewport": true,
+      "hiddenRender": true
+    },
+    {
+      "name": "Light",
+      "type": "LIGHT",
+      "parent": null,
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Camera",
+      "type": "CAMERA",
+      "parent": null,
+      "hiddenViewport": false,
+      "hiddenRender": false
+    },
+    {
+      "name": "Icosphere",
+      "type": "MESH",
+      "parent": null,
+      "hiddenViewport": false,
+      "hiddenRender": false
+    }
+  ],
+  "armatureCount": 1,
+  "armatures": [
+    {
+      "name": "Armature",
+      "boneCount": 54,
+      "bones": [
+        "Hips",
+        "LeftUpLeg",
+        "LeftLeg",
+        "LeftFoot",
+        "LeftToeBase",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "Neck",
+        "Head",
+        "LeftEye",
+        "RightEye",
+        "LeftShoulder",
+        "LeftArm",
+        "LeftForeArm",
+        "LeftHand",
+        "LeftHandIndex1",
+        "LeftHandIndex2",
+        "LeftHandIndex3",
+        "LeftHandMiddle1",
+        "LeftHandMiddle2",
+        "LeftHandMiddle3",
+        "LeftHandPinky1",
+        "LeftHandPinky2",
+        "LeftHandPinky3",
+        "LeftHandRing1",
+        "LeftHandRing2",
+        "LeftHandRing3",
+        "LeftHandThumb1",
+        "LeftHandThumb2",
+        "LeftHandThumb3",
+        "RightShoulder",
+        "RightArm",
+        "RightForeArm",
+        "RightHand",
+        "RightHandIndex1",
+        "RightHandIndex2",
+        "RightHandIndex3",
+        "RightHandMiddle1",
+        "RightHandMiddle2",
+        "RightHandMiddle3",
+        "RightHandPinky1",
+        "RightHandPinky2",
+        "RightHandPinky3",
+        "RightHandRing1",
+        "RightHandRing2",
+        "RightHandRing3",
+        "RightHandThumb1",
+        "RightHandThumb2",
+        "RightHandThumb3",
+        "RightUpLeg",
+        "RightLeg",
+        "RightFoot",
+        "RightToeBase"
+      ],
+      "activeAction": "Brag_n_Claps_Clean_Armature",
+      "nlaTracks": [
+        {
+          "name": "Brag_n_Claps_Clean",
+          "mute": true,
+          "strips": [
+            {
+              "name": "Brag_n_Claps_Clean_Armature",
+              "action": "Brag_n_Claps_Clean_Armature",
+              "frameStart": 1.0,
+              "frameEnd": 240.1999969482422
+            }
+          ]
+        }
+      ],
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotationMode": "QUATERNION",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "meshCount": 12,
+  "meshes": [
+    {
+      "name": "Body_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Eye_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "EyeAO_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Eyelash_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Head_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Teeth_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Tongue_Mesh",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "avaturn_hair_0",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "avaturn_shoes_0",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "avaturn_look_0",
+      "parent": "Armature",
+      "armatureModifiers": [
+        "Armature"
+      ],
+      "vertexGroupCount": 54,
+      "materialSlots": 1
+    },
+    {
+      "name": "Cube",
+      "parent": null,
+      "armatureModifiers": [],
+      "vertexGroupCount": 0,
+      "materialSlots": 1
+    },
+    {
+      "name": "Icosphere",
+      "parent": null,
+      "armatureModifiers": [],
+      "vertexGroupCount": 0,
+      "materialSlots": 0
+    }
+  ],
+  "actionCount": 1,
+  "actions": [
+    {
+      "name": "Brag_n_Claps_Clean_Armature",
+      "frameRange": [
+        0.8000000715255737,
+        240.0
+      ],
+      "fcurveCount": 211,
+      "groups": [
+        "LeftToeBase",
+        "LeftFoot",
+        "LeftLeg",
+        "LeftUpLeg",
+        "Head",
+        "Neck",
+        "LeftHandIndex3",
+        "LeftHandIndex2",
+        "LeftHandIndex1",
+        "LeftHandMiddle3",
+        "LeftHandMiddle2",
+        "LeftHandMiddle1",
+        "LeftHandPinky3",
+        "LeftHandPinky2",
+        "LeftHandPinky1",
+        "LeftHandRing3",
+        "LeftHandRing2",
+        "LeftHandRing1",
+        "LeftHandThumb3",
+        "LeftHandThumb2",
+        "LeftHandThumb1",
+        "LeftHand",
+        "LeftForeArm",
+        "LeftArm",
+        "LeftShoulder",
+        "RightHandIndex3",
+        "RightHandIndex2",
+        "RightHandIndex1",
+        "RightHandMiddle3",
+        "RightHandMiddle2",
+        "RightHandMiddle1",
+        "RightHandPinky3",
+        "RightHandPinky2",
+        "RightHandPinky1",
+        "RightHandRing3",
+        "RightHandRing2",
+        "RightHandRing1",
+        "RightHandThumb3",
+        "RightHandThumb2",
+        "RightHandThumb1",
+        "RightHand",
+        "RightForeArm",
+        "RightArm",
+        "RightShoulder",
+        "Spine2",
+        "Spine1",
+        "Spine",
+        "RightToeBase",
+        "RightFoot",
+        "RightLeg",
+        "RightUpLeg",
+        "Hips"
+      ],
+      "users": 2
+    }
+  ]
+}

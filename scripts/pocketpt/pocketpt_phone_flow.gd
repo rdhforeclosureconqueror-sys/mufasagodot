@@ -23,6 +23,7 @@ var state: Dictionary = {
 	"incoming_sequence": 0,
 	"outgoing_sequence": 0,
 	"pending_command": "",
+	"last_action": "NONE",
 	"animations": PackedStringArray()
 }
 
@@ -80,7 +81,7 @@ func capabilities() -> Dictionary:
 	return {
 		"contextLock": true,
 		"touchNavigation": true,
-		"matApproach": _mat_target != null and is_instance_valid(_mat_target),
+		"matApproach": _mat_target != null and is_instance_valid(_mat_target) and _player != null and _player.navigation_ready(),
 		"pushUpTransition": _has_push_up_transitions()
 	}
 
@@ -148,6 +149,7 @@ func _accept_message(message: Dictionary) -> bool:
 	var action := str(message.get("action", ""))
 	var context := str(message.get("context", ""))
 	if action == "STOP":
+		state["last_action"] = action
 		state["incoming_sequence"] = sequence
 		_player.stop_navigation()
 		_clear_navigation_command()
@@ -156,6 +158,7 @@ func _accept_message(message: Dictionary) -> bool:
 	if context not in CONTEXTS:
 		return false
 	if action == "SET_CONTEXT":
+		state["last_action"] = action
 		state["incoming_sequence"] = sequence
 		state["context"] = context
 		_player.set_navigation_context(context)
@@ -172,6 +175,7 @@ func _accept_message(message: Dictionary) -> bool:
 		if not _player.set_remote_intent(DIRECTIONS[action] * float(intensity_value), int(valid_for)):
 			return false
 		_requested_motion_action = action
+		state["last_action"] = action
 		state["incoming_sequence"] = sequence
 		_publish()
 		return true
@@ -181,6 +185,7 @@ func _accept_message(message: Dictionary) -> bool:
 		if not _player.start_route(_mat_target.global_position):
 			return false
 		_requested_motion_action = ""
+		state["last_action"] = action
 		state["incoming_sequence"] = sequence
 		state["pending_command"] = action
 		_pending_reply_to = sequence

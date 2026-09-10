@@ -20,6 +20,9 @@ func _ready() -> void:
 	debug_ui.bind_client(client)
 
 	var current_scene := get_tree().current_scene
+	if current_scene == null:
+		push_error("PocketPT bootstrap requires an active main scene")
+		return
 	var visual_mount := current_scene.get_node_or_null("player/avataranchor") as Node3D
 	var fallback_visual := current_scene.get_node_or_null("player/Sketchfab_Scene") as Node3D
 	avatar_loader = AvatarLoaderScript.new()
@@ -34,5 +37,6 @@ func _ready() -> void:
 		phone_flow.name = "PocketPTPhoneFlow"
 		add_child(phone_flow)
 		phone_flow.bind(client, player, avatar_loader)
+		debug_ui.bind_runtime(phone_flow, player)
 
 	client.call_deferred("initialize")

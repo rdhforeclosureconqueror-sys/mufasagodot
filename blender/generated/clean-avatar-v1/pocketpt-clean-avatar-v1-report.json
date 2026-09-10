@@ -1,0 +1,44 @@
+{
+  "status": "CLEAN_RIGGED_AVATAR_REQUIRES_VISUAL_REVIEW",
+  "source": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\reference\\canonical-avatar.glb",
+  "output": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\generated\\clean-avatar-v1\\pocketpt-clean-avatar-v1.glb",
+  "blend": "C:\\Users\\pftgu\\Documents\\avlobytest\\blender\\generated\\clean-avatar-v1\\pocketpt-clean-avatar-v1.blend",
+  "visual": "Ch18",
+  "armature": "Armature",
+  "boneCount": 65,
+  "removedObjects": [
+    {
+      "name": "Icosphere",
+      "type": "MESH"
+    }
+  ],
+  "remainingObjects": [
+    {
+      "name": "Armature",
+      "type": "ARMATURE"
+    },
+    {
+      "name": "Ch18",
+      "type": "MESH"
+    }
+  ],
+  "visualBounds": {
+    "min": [
+      -0.890126,
+      -0.189771,
+      -0.001559
+    ],
+    "max": [
+      0.890125,
+      0.123942,
+      1.771296
+    ],
+    "size": [
+      1.780251,
+      0.313713,
+      1.772855
+    ]
+  },
+  "armatureHiddenForReview": true,
+  "animationCount": 0
+}
