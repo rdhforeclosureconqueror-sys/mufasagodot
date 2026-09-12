@@ -2,14 +2,12 @@ extends Node
 
 const AvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_avatar_loader.gd")
 const PhoneFlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow.gd")
-const HumanizerIdleBinderScript = preload("res://scripts/pocketpt/pocketpt_humanizer_idle_binder.gd")
 const LocomotionAnimatorScript = preload("res://scripts/pocketpt/pocketpt_locomotion_animator.gd")
 
 var client: PocketPTGameClient
 var debug_ui: PocketPTBridgeDebug
 var avatar_loader: Node
 var phone_flow: Node
-var humanizer_idle_binder: Node
 var locomotion_animator: Node
 
 func _ready() -> void:
@@ -34,12 +32,6 @@ func _ready() -> void:
 	add_child(avatar_loader)
 	avatar_loader.bind(client, visual_mount, fallback_visual)
 	debug_ui.bind_avatar_loader(avatar_loader)
-	humanizer_idle_binder = HumanizerIdleBinderScript.new()
-	humanizer_idle_binder.name = "PocketPTHumanizerIdleBinder"
-	add_child(humanizer_idle_binder)
-	humanizer_idle_binder.bind(client, avatar_loader)
-	debug_ui.bind_humanizer_idle_binder(humanizer_idle_binder)
-
 	var player := current_scene.get_node_or_null("player") as GymPlayerController
 	if player != null:
 		locomotion_animator = LocomotionAnimatorScript.new()

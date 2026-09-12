@@ -5,7 +5,6 @@ var client: PocketPTGameClient
 var avatar_loader: Node
 var phone_flow: Node
 var player: GymPlayerController
-var humanizer_idle_binder: Node
 var output: TextEdit
 
 func _ready() -> void:
@@ -50,9 +49,6 @@ func bind_runtime(flow: Node, controller: GymPlayerController) -> void:
 	phone_flow = flow
 	player = controller
 
-func bind_humanizer_idle_binder(value: Node) -> void:
-	humanizer_idle_binder = value
-
 func _process(_delta: float) -> void:
 	if output == null:
 		return
@@ -77,11 +73,11 @@ func _process(_delta: float) -> void:
 	var animation_name := "NONE"
 	if phone_flow != null and phone_flow._animation_player != null:
 		animation_name = str(phone_flow._animation_player.current_animation)
-	var feet_offset := float(avatar.get("floor_offset", 0.0)) - 0.76 if avatar_loader != null else -0.76
-	var humanizer: Dictionary = humanizer_idle_binder.diagnostics if humanizer_idle_binder != null else {}
+	var visual_anchor := player.get_node_or_null("avataranchor") as Node3D if player != null else null
+	var feet_offset := float(avatar.get("floor_offset", 0.0)) + visual_anchor.position.y if avatar_loader != null and visual_anchor != null else 0.0
 	output.text = """POCKETPT PAGE: %s
 → IFRAME: %s
-→ GODOT READY: YES
+ → GODOT READY: %s
 → FLOW NEGOTIATION: %s
 → CONTROL RECEIVED: %s
 → PLAYER CONTROLLER: %s
@@ -108,22 +104,10 @@ ACTIVE_LOCOMOTION: %s
 ANIMATION_PLAYING: %s
 GROUND_STATE: %s
 
-BOOTSTRAP_MAPPING_PRESENT: %s
-PERSONAL_AVATAR_MOUNTED: %s
-PERSONAL_SKELETON_FOUND: %s
-SAVED_MAP_SCHEMA_VALID: %s
-SAVED_BONES_EXIST: %s
-HUMANOID_PROFILE_RESOLVED: %s
-PROFILE_NAME_TRANSLATION_RESOLVED: %s
-GODOT_BONEMAP_CREATED: %s
-IDLE_CLIP_RESOLVED: %s
-RETARGET_BOUND: %s
-CLIP_PLAYING: %s
-HUMANIZER FIRST FAILURE: %s
-
 FIRST FAILURE: %s""" % [
 		"CONNECTED" if bool(connection.get("bootstrap_valid", false)) else ("DESKTOP TEST" if not web else "PENDING"),
 		"READY" if bool(connection.get("parent_handshake", false)) else ("DESKTOP TEST" if not web else "PENDING"),
+		"YES" if bool(connection.get("parent_handshake", false)) else ("DESKTOP TEST" if not web else "NO"),
 		"CONNECTED" if bool(flow_state.get("connected", false)) else "PENDING", str(flow_state.get("last_action", "NONE")),
 		"FOUND" if player != null else "MISSING", ("GROUNDED" if grounded else "AIRBORNE") if collision_found and floor_found else "MISSING",
 		str(player.velocity if player != null else Vector3.ZERO), animation_name, "READY" if nav_ready else "SYNCING" if nav_found else "MISSING",
@@ -132,13 +116,7 @@ FIRST FAILURE: %s""" % [
 		"PASS" if grounded else "PENDING", _yes(grounded), player.global_position.y if player != null else 0.0, feet_offset,
 		str(flow_state.get("last_action", "NONE")), str(player._remote_direction if player != null else Vector2.ZERO),
 		str(player.velocity if player != null else Vector3.ZERO), player._last_source if player != null else "NONE",
-		animation_name, player.grounded_state() if player != null else "UNKNOWN",
-		_yes(bool(humanizer.get("BOOTSTRAP_MAPPING_PRESENT", false))), _yes(bool(humanizer.get("PERSONAL_AVATAR_MOUNTED", false))),
-		_yes(bool(humanizer.get("PERSONAL_SKELETON_FOUND", false))), _yes(bool(humanizer.get("SAVED_MAP_SCHEMA_VALID", false))),
-		_yes(bool(humanizer.get("SAVED_BONES_EXIST", false))), _yes(bool(humanizer.get("HUMANOID_PROFILE_RESOLVED", false))),
-		_yes(bool(humanizer.get("PROFILE_NAME_TRANSLATION_RESOLVED", false))), _yes(bool(humanizer.get("GODOT_BONEMAP_CREATED", false))),
-		_yes(bool(humanizer.get("IDLE_CLIP_RESOLVED", false))), _yes(bool(humanizer.get("RETARGET_BOUND", false))),
-		_yes(bool(humanizer.get("CLIP_PLAYING", false))), str(humanizer.get("FIRST_FAILURE", "BOOTSTRAP_MAPPING_PRESENT")), first_failure,
+		animation_name, player.grounded_state() if player != null else "UNKNOWN", first_failure,
 	]
 
 func _yes(value: bool) -> String:
