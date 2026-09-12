@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dltqptv0p44kt" path="res://main.gd" id="1_uu6xs"]
 [ext_resource type="Script" uid="uid://bgln8ajer1o26" path="res://player.gd" id="2_r0du0"]
-[ext_resource type="PackedScene" uid="uid://b8eq2leq4ouvt" path="res://infernus__deadlock_hero_model/scene.gltf" id="3_r0du0"]
+[ext_resource type="PackedScene" uid="uid://b8eq2leq4ouvt" path="res://assets/characters/infernus__deadlock_hero_model/scene.gltf" id="3_r0du0"]
 [ext_resource type="Script" uid="uid://bgv6w7hdfu8aa" path="res://gym_environment.gd" id="4_fos0i"]
 [ext_resource type="Script" uid="uid://j5jbm3nl1ot3" path="res://squat_test.gd" id="5_3dxm6"]
 [ext_resource type="Script" uid="uid://cvcegqpad4cps" path="res://scripts/pocketpt/pocketpt_bootstrap.gd" id="6_3dxm6"]
@@ -15,7 +15,7 @@ height = 1.5
 script = ExtResource("1_uu6xs")
 
 [node name="player" type="CharacterBody3D" parent="."]
-position = Vector3(0, 0.76, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.76, 0)
 script = ExtResource("2_r0du0")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="player"]
@@ -25,20 +25,19 @@ shape = SubResource("CapsuleShape3D_rxg2q")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -34.276886)
 
 [node name="SpringArm3D" type="SpringArm3D" parent="player"]
-position = Vector3(0, 0.85, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
 spring_length = 4.5
 
 [node name="Camera3D" type="Camera3D" parent="player/SpringArm3D"]
 current = true
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="player"]
-path_height_offset = -0.76
-target_desired_distance = 0.35
 path_desired_distance = 0.25
-avoidance_enabled = false
+target_desired_distance = 0.35
+path_height_offset = -0.76
 
 [node name="avataranchor" type="Node3D" parent="player"]
-position = Vector3(0, -0.76, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.76, 0)
 
 [node name="Sketchfab_Scene" parent="player" instance=ExtResource("3_r0du0")]
 transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, -1.195, 0)
@@ -47,8 +46,7 @@ transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, -1.195, 0)
 script = ExtResource("4_fos0i")
 
 [node name="MufasaGym" parent="." instance=ExtResource("7_mufasa")]
-position = Vector3(-5.7, 0, 3.8)
-rotation_degrees = Vector3(0, 150, 0)
+transform = Transform3D(-0.8660254, 0, 0.50000006, 0, 1, 0, -0.50000006, 0, -0.8660254, -5.7, 0, 3.8)
 
 [node name="SquatTest" type="Node" parent="."]
 script = ExtResource("5_3dxm6")

@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/characters/pocketpt/source/rashad1.glb" id="1_avatar"]
+[ext_resource type="AnimationLibrary" path="res://game/animations/player/player_locomotion_library.tres" id="2_library"]
+
+[node name="RashadHumanizerWalkPreview" type="Node3D"]
+[node name="Avatar" parent="." instance=ExtResource("1_avatar")]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {"player": ExtResource("2_library")}
+autoplay = "player/Walk"
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-42, -28, 0)
+shadow_enabled = true
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 1.35, 3.2)
+current = true

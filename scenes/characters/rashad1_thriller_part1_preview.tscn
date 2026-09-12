@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/characters/pocketpt/source/rashad1.glb" id="1_avatar"]
+[ext_resource type="AnimationLibrary" path="res://game/animations/player/player_action_library.tres" id="2_library"]
+
+[node name="RashadThrillerPart1Preview" type="Node3D"]
+
+[node name="Avatar" parent="." instance=ExtResource("1_avatar")]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"action": ExtResource("2_library")
+}
+autoplay = "action/ThrillerPart1"
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.88294756, 0.31413782, -0.34888536, 0, 0.7431448, 0.6691306, 0.46947157, -0.59080726, 0.6561579, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 1.35, 3.2)
+current = true

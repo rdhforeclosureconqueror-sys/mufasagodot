@@ -298,6 +298,10 @@ func _inspect_animations(root: Node) -> void:
 	_walk_clip = ""
 	_strafe_left_clip = ""
 	_strafe_right_clip = ""
+	if bool(root.get_meta("pocketpt_shared_locomotion", false)):
+		state["animations"] = PackedStringArray(["player/Idle", "player/Walk", "player/Run"])
+		_publish()
+		return
 	var clips := PackedStringArray()
 	var players := root.find_children("*", "AnimationPlayer", true, false)
 	if root is AnimationPlayer:

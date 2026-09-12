@@ -3,11 +3,13 @@ extends CharacterBody3D
 
 signal mat_selected()
 signal navigation_state_changed(moving: bool, source: String)
+signal locomotion_speed_changed(horizontal_speed: float, source: String)
 signal route_finished(arrived: bool)
 
 enum NavigationContext { GYM_NAVIGATION, CAMERA_SETUP, LOCKED }
 
 @export var speed := 5.0
+@export var run_speed_multiplier := 1.6
 @export var jump_velocity := 4.5
 @export var gravity := 12.0
 @export var mat_arrival_distance := 0.35
@@ -47,14 +49,18 @@ func _physics_process(delta: float) -> void:
 	var movement := _resolve_movement()
 	var direction: Vector3 = movement.get("direction", Vector3.ZERO)
 	var source: String = movement.get("source", "NONE")
+	var target_speed := speed * run_speed_multiplier if source == "KEYBOARD" and Input.is_key_pressed(KEY_SHIFT) else speed
 	if direction.length_squared() > 0.0001:
-		velocity.x = direction.x * speed
-		velocity.z = direction.z * speed
+		velocity.x = direction.x * target_speed
+		velocity.z = direction.z * target_speed
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
+	var position_before_move := global_position
 	move_and_slide()
-	var moving := Vector2(velocity.x, velocity.z).length() > 0.05
+	var actual_horizontal_speed := Vector2(global_position.x - position_before_move.x, global_position.z - position_before_move.z).length() / maxf(delta, 0.000001)
+	var moving := actual_horizontal_speed > 0.05
+	locomotion_speed_changed.emit(actual_horizontal_speed, source)
 	if moving != _was_moving or source != _last_source:
 		_was_moving = moving
 		_last_source = source
