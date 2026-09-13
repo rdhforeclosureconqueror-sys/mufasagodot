@@ -62,6 +62,7 @@ func bind(client: PocketPTGameClient, player: GymPlayerController, avatar_loader
 	_avatar_loader.fallback_activated.connect(_on_fallback_activated)
 	if _locomotion_animator != null:
 		_locomotion_animator.runtime_evidence_changed.connect(_on_animation_evidence_changed)
+		_locomotion_animator.action_override_changed.connect(_on_action_override_changed)
 	call_deferred("_resolve_mat_target")
 	_install_browser_receiver()
 	set_process(true)
@@ -167,7 +168,10 @@ func _accept_message(message: Dictionary) -> bool:
 		state["last_action"] = action
 		state["incoming_sequence"] = sequence
 		state["context"] = context
-		_player.set_navigation_context(context)
+		if _locomotion_animator != null and _locomotion_animator.action_override_active and context == "GYM_NAVIGATION":
+			_player.set_navigation_context("LOCKED")
+		else:
+			_player.set_navigation_context(context)
 		_clear_navigation_command()
 		_publish()
 		return true
@@ -179,6 +183,19 @@ func _accept_message(message: Dictionary) -> bool:
 		state["movementMode"] = mode
 		_publish()
 		return true
+	if action == "PLAY_ACTION":
+		var action_name := str(message.get("name", ""))
+		if context != str(state["context"]) or context != "GYM_NAVIGATION" or action_name != "ThrillerPart1":
+			return false
+		if _locomotion_animator == null or not _locomotion_animator.can_request_action(&"ThrillerPart1"):
+			return false
+		if not _locomotion_animator.request_action(&"ThrillerPart1"):
+			return false
+		_requested_motion_action = ""
+		state["last_action"] = action
+		state["incoming_sequence"] = sequence
+		_publish()
+		return true
 	if context != str(state["context"]):
 		return false
 	if action in DIRECTIONS:
@@ -188,6 +205,7 @@ func _accept_message(message: Dictionary) -> bool:
 			return false
 		if not _player.set_remote_intent(DIRECTIONS[action] * float(intensity_value), int(valid_for), action):
 			return false
+		_clear_navigation_command()
 		_requested_motion_action = action
 		state["last_action"] = action
 		state["incoming_sequence"] = sequence
@@ -351,6 +369,18 @@ func _on_animation_evidence_changed() -> void:
 	if _locomotion_animator != null and _locomotion_animator._avatar_root != null:
 		_inspect_animations(_locomotion_animator._avatar_root)
 	if not _diagnostic_request_id.is_empty(): _report_animation_diagnostics()
+
+func _on_action_override_changed(active: bool) -> void:
+	if _player == null:
+		return
+	if active:
+		_player.stop_navigation()
+		_player.set_navigation_context("LOCKED")
+		_clear_navigation_command()
+	else:
+		var context := str(state.get("context", "LOCKED"))
+		_player.set_navigation_context(context if context in CONTEXTS else "LOCKED")
+	_publish()
 
 func _report_animation_diagnostics() -> void:
 	if _locomotion_animator == null:

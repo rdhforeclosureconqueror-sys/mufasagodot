@@ -2,6 +2,7 @@ class_name PocketPTLocomotionAnimator
 extends Node
 
 signal runtime_evidence_changed()
+signal action_override_changed(active: bool)
 
 const LIBRARY_PATH := "res://game/animations/player/player_locomotion_library.tres"
 const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library.tres"
@@ -29,6 +30,11 @@ func bind(player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> v
 	avatar_loader.avatar_mounted.connect(_on_avatar_mounted)
 
 func _on_avatar_mounted(avatar_root: Node3D) -> void:
+	_cancel_action_override_for_rebind()
+	set_process(false)
+	animation_player = null
+	animation_tree = null
+	_playback = null
 	_avatar_root = avatar_root
 	active_skeleton = null
 	binding_error = "AVATAR_SKELETON_NOT_BOUND"
@@ -134,14 +140,30 @@ func _mount_library(source: AnimationLibrary, target_path: String) -> AnimationL
 		mounted.add_animation(clip_name, clip)
 	return mounted
 
-func request_action(semantic_id: StringName) -> bool:
-	if animation_player == null or animation_tree == null: return false
+func _cancel_action_override_for_rebind() -> void:
+	if not action_override_active:
+		return
+	if animation_player != null and is_instance_valid(animation_player):
+		animation_player.stop()
+	if animation_tree != null and is_instance_valid(animation_tree):
+		animation_tree.active = false
+	action_override_active = false
+	current_state = &"IDLE"
+	action_override_changed.emit(false)
+
+func can_request_action(semantic_id: StringName) -> bool:
+	if action_override_active or animation_player == null or animation_tree == null or not binding_error.is_empty(): return false
 	var qualified := StringName(semantic_id if String(semantic_id).begins_with("action/") else "action/" + String(semantic_id))
-	if not animation_player.has_animation(qualified): return false
+	return animation_player.has_animation(qualified)
+
+func request_action(semantic_id: StringName) -> bool:
+	if not can_request_action(semantic_id): return false
+	var qualified := StringName(semantic_id if String(semantic_id).begins_with("action/") else "action/" + String(semantic_id))
 	action_override_active = true
 	current_state = &"ACTION_OVERRIDE"
 	animation_tree.active = false
 	animation_player.play(qualified, 0.15)
+	action_override_changed.emit(true)
 	return true
 
 func _on_animation_finished(animation_name: StringName) -> void:
@@ -151,6 +173,7 @@ func _on_animation_finished(animation_name: StringName) -> void:
 	animation_tree.active = true
 	_playback = animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
 	_playback.start(&"IDLE")
+	action_override_changed.emit(false)
 
 func _on_locomotion_sampled(sample: Dictionary) -> void:
 	if action_override_active: return

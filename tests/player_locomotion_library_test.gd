@@ -48,6 +48,16 @@ func _run() -> void:
 	if animator.current_state != &"RUN": return _fail("RUNTIME_RUN")
 	animator._on_locomotion_sampled({"actualHorizontalDisplacement":0.0, "movementMode":"RUN"})
 	if animator.current_state != &"IDLE": return _fail("RUNTIME_STOP_IDLE")
+	var override_events: Array[bool] = []
+	animator.action_override_changed.connect(func(active: bool): override_events.append(active))
+	if not animator.request_action(&"ThrillerPart1"): return _fail("ACTION_START")
+	if not animator.action_override_active: return _fail("ACTION_OVERRIDE_NOT_ACTIVE")
+	var replacement_wrapper := Node3D.new(); root.add_child(replacement_wrapper)
+	var replacement_avatar := (load("res://assets/characters/pocketpt/source/rashad1.glb") as PackedScene).instantiate(); replacement_wrapper.add_child(replacement_avatar)
+	animator._on_avatar_mounted(replacement_wrapper)
+	if animator.action_override_active: return _fail("ACTION_OVERRIDE_STUCK_AFTER_REBIND")
+	if false not in override_events: return _fail("ACTION_OVERRIDE_RELEASE_SIGNAL")
+	if not animator.can_request_action(&"ThrillerPart1"): return _fail("ACTION_NOT_READY_AFTER_REBIND")
 	print("PLAYER_LOCOMOTION_TEST: PASS clips=player/Idle,player/Walk,player/Run root_motion=IN_PLACE transitions=IDLE-WALK-RUN")
 	quit(0)
 
