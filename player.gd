@@ -19,7 +19,7 @@ enum LocomotionMode { WALK, RUN }
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
-@onready var avatar_anchor: Node3D = $avataranchor
+@onready var avatar_anchor: Node3D = get_node_or_null("avataranchor") as Node3D
 
 var navigation_context := NavigationContext.GYM_NAVIGATION
 var movement_mode := LocomotionMode.WALK
