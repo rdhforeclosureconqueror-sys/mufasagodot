@@ -1,0 +1,167 @@
+name: Apply Live Locomotion Fix
+
+on:
+  push:
+    branches:
+      - fix/walk-facing-thriller-20260913
+    paths:
+      - .github/workflows/apply-live-locomotion-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/walk-facing-thriller-20260913
+
+      - name: Patch movement facing and Thriller control
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          player = Path('player.gd')
+          text = player.read_text()
+          old = '@export var mat_arrival_distance := 0.35\n'
+          new = '@export var mat_arrival_distance := 0.35\n@export var visual_turn_speed := 12.0\n'
+          if 'visual_turn_speed' not in text:
+              if old not in text: raise SystemExit('FIRST FAILURE: player export insertion point missing')
+              text = text.replace(old, new, 1)
+
+          old = '@onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D\n'
+          new = '@onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D\n@onready var avatar_anchor: Node3D = $avataranchor\n'
+          if 'avatar_anchor:' not in text:
+              if old not in text: raise SystemExit('FIRST FAILURE: avatar anchor insertion point missing')
+              text = text.replace(old, new, 1)
+
+          old = '\tvar target_speed := speed * run_speed_multiplier if effective_mode == LocomotionMode.RUN else speed\n\tif direction.length_squared() > 0.0001:\n\t\tvelocity.x = direction.x * target_speed\n'
+          new = '\tvar target_speed := speed * run_speed_multiplier if effective_mode == LocomotionMode.RUN else speed\n\tif direction.length_squared() > 0.0001:\n\t\t_face_visual_direction(direction, delta)\n\t\tvelocity.x = direction.x * target_speed\n'
+          if '_face_visual_direction(direction, delta)' not in text:
+              if old not in text: raise SystemExit('FIRST FAILURE: movement facing insertion point missing')
+              text = text.replace(old, new, 1)
+
+          marker = 'func set_navigation_context(value: String) -> bool:\n'
+          helper = '''func _face_visual_direction(world_direction: Vector3, delta: float) -> void:\n\tif avatar_anchor == null:\n\t\treturn\n\tvar local_direction := global_transform.basis.inverse() * world_direction\n\tlocal_direction.y = 0.0\n\tif local_direction.length_squared() <= 0.0001:\n\t\treturn\n\tlocal_direction = local_direction.normalized()\n\tvar target_yaw := atan2(-local_direction.x, -local_direction.z)\n\tavatar_anchor.rotation.y = lerp_angle(avatar_anchor.rotation.y, target_yaw, clampf(visual_turn_speed * delta, 0.0, 1.0))\n\n'''
+          if 'func _face_visual_direction' not in text:
+              if marker not in text: raise SystemExit('FIRST FAILURE: facing helper insertion point missing')
+              text = text.replace(marker, helper + marker, 1)
+
+          old = '\t\t"physicalMovementObserved": moving,\n\t\t"source": source,\n'
+          new = '\t\t"physicalMovementObserved": moving,\n\t\t"visualFacingYaw": avatar_anchor.rotation.y if avatar_anchor != null else 0.0,\n\t\t"source": source,\n'
+          if '"visualFacingYaw"' not in text:
+              if old not in text: raise SystemExit('FIRST FAILURE: facing telemetry insertion point missing')
+              text = text.replace(old, new, 1)
+          player.write_text(text)
+
+          phone = Path('scripts/pocketpt/pocketpt_phone_flow.gd')
+          text = phone.read_text()
+          anchor = '''\tif action == "SET_LOCOMOTION_MODE":\n\t\tvar mode := str(message.get("mode", ""))\n\t\tif context != str(state["context"]) or not _player.set_locomotion_mode(mode): return false\n\t\tstate["last_action"] = action\n\t\tstate["incoming_sequence"] = sequence\n\t\tstate["movementMode"] = mode\n\t\t_publish()\n\t\treturn true\n'''
+          addition = anchor + '''\tif action == "PLAY_ACTION":\n\t\tvar action_name := str(message.get("name", ""))\n\t\tif context != str(state["context"]) or context != "GYM_NAVIGATION" or action_name != "ThrillerPart1":\n\t\t\treturn false\n\t\tif _locomotion_animator == null:\n\t\t\treturn false\n\t\t_player.stop_navigation()\n\t\t_clear_navigation_command()\n\t\tif not _locomotion_animator.play_action(&"action/ThrillerPart1"):\n\t\t\treturn false\n\t\t_requested_motion_action = ""\n\t\tstate["last_action"] = action\n\t\tstate["incoming_sequence"] = sequence\n\t\t_publish()\n\t\treturn true\n'''
+          if 'action == "PLAY_ACTION"' not in text:
+              if anchor not in text: raise SystemExit('FIRST FAILURE: Thriller insertion point missing')
+              text = text.replace(anchor, addition, 1)
+          phone.write_text(text)
+
+          workflow = Path('.github/workflows/web-export.yml')
+          text = workflow.read_text()
+          branch_line = '      - fix/walk-facing-thriller-20260913\n'
+          if branch_line not in text:
+              needle = '      - ci/phone-web-export-20260913\n'
+              if needle not in text: raise SystemExit('FIRST FAILURE: web export branch insertion point missing')
+              text = text.replace(needle, needle + branch_line, 1)
+          workflow.write_text(text)
+          PY
+
+      - name: Add permanent validation script
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > tools/verify_live_locomotion_fix.gd <<'GDSCRIPT'
+          extends SceneTree
+
+          const LOCOMOTION_LIBRARY := "res://game/animations/player/player_locomotion_library.tres"
+          const ACTION_LIBRARY := "res://game/animations/player/player_action_library.tres"
+
+          func _initialize() -> void:
+          	call_deferred("_run")
+
+          func _run() -> void:
+          	var locomotion := load(LOCOMOTION_LIBRARY) as AnimationLibrary
+          	if locomotion == null:
+          		return _fail("LOCOMOTION_LIBRARY_MISSING")
+          	for name in [&"Idle", &"Walk", &"Run"]:
+          		if not locomotion.has_animation(name):
+          			return _fail("MISSING_%s" % String(name).to_upper())
+          	var walk := locomotion.get_animation(&"Walk")
+          	if walk.get_track_count() < 10:
+          		return _fail("WALK_TRACKS_%d" % walk.get_track_count())
+          	var animated_tracks := 0
+          	for track_index in walk.get_track_count():
+          		if walk.track_get_key_count(track_index) > 1 and walk.track_get_type(track_index) in [Animation.TYPE_ROTATION_3D, Animation.TYPE_POSITION_3D]:
+          			animated_tracks += 1
+          	if animated_tracks < 10:
+          		return _fail("WALK_ANIMATED_TRACKS_%d" % animated_tracks)
+          	var actions := load(ACTION_LIBRARY) as AnimationLibrary
+          	if actions == null or not actions.has_animation(&"action/ThrillerPart1"):
+          		return _fail("THRILLER_ACTION_MISSING")
+          	var thriller := actions.get_animation(&"action/ThrillerPart1")
+          	if thriller.get_track_count() < 10:
+          		return _fail("THRILLER_TRACKS_%d" % thriller.get_track_count())
+          	print("LIVE_LOCOMOTION_FIX: PASS walk_tracks=%d walk_animated_tracks=%d thriller_tracks=%d" % [walk.get_track_count(), animated_tracks, thriller.get_track_count()])
+          	quit(0)
+
+          func _fail(reason: String) -> void:
+          	push_error("LIVE_LOCOMOTION_FIX: FAIL " + reason)
+          	quit(1)
+          GDSCRIPT
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Import project resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Replace broken Walk with approved target-native Walk
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tools/replace_walk_from_blender.gd
+
+      - name: Validate Walk and Thriller assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tools/verify_live_locomotion_fix.gd
+          grep -q '_face_visual_direction(direction, delta)' player.gd
+          grep -q 'action == "PLAY_ACTION"' scripts/pocketpt/pocketpt_phone_flow.gd
+          grep -q 'action/ThrillerPart1' scripts/pocketpt/pocketpt_phone_flow.gd
+
+      - name: Commit repaired Godot source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add player.gd scripts/pocketpt/pocketpt_phone_flow.gd game/animations/player/player_locomotion_library.tres tools/verify_live_locomotion_fix.gd .github/workflows/web-export.yml
+          git diff --cached --stat
+          git commit -m "Fix visual Walk facing and expose Thriller action"
+          git push origin HEAD:fix/walk-facing-thriller-20260913
