@@ -25,6 +25,7 @@ var state: Dictionary = {
 	"outgoing_sequence": 0,
 	"pending_command": "",
 	"last_action": "NONE",
+	"movementMode": "WALK",
 	"animations": PackedStringArray()
 }
 
@@ -170,6 +171,14 @@ func _accept_message(message: Dictionary) -> bool:
 		_clear_navigation_command()
 		_publish()
 		return true
+	if action == "SET_LOCOMOTION_MODE":
+		var mode := str(message.get("mode", ""))
+		if context != str(state["context"]) or not _player.set_locomotion_mode(mode): return false
+		state["last_action"] = action
+		state["incoming_sequence"] = sequence
+		state["movementMode"] = mode
+		_publish()
+		return true
 	if context != str(state["context"]):
 		return false
 	if action in DIRECTIONS:
@@ -177,7 +186,7 @@ func _accept_message(message: Dictionary) -> bool:
 		var intensity_value = message.get("intensity", 1.0)
 		if not _exact_bounded_number(valid_for, 1.0, 300.0) or not _exact_bounded_number(intensity_value, 0.0, 1.0):
 			return false
-		if not _player.set_remote_intent(DIRECTIONS[action] * float(intensity_value), int(valid_for)):
+		if not _player.set_remote_intent(DIRECTIONS[action] * float(intensity_value), int(valid_for), action):
 			return false
 		_requested_motion_action = action
 		state["last_action"] = action
@@ -349,9 +358,9 @@ func _report_animation_diagnostics() -> void:
 		_report_diagnostic("LOCOMOTION", "NOT_CONNECTED", "ANIMATION_PLAYER_NOT_BOUND")
 		return
 	var idle := _locomotion_animator.diagnostic_status(&"IDLE")
-	var walk := _locomotion_animator.diagnostic_status(&"WALK")
-	_report_diagnostic("ANIMATION_IDLE", str(idle.status), str(idle.reason))
-	_report_diagnostic("LOCOMOTION", str(walk.status), str(walk.reason))
+	var walk := _locomotion_animator.locomotion_diagnostic_status()
+	_report_diagnostic("ANIMATION_IDLE", str(idle.status), str(idle.reason), _locomotion_animator.runtime_snapshot)
+	_report_diagnostic("LOCOMOTION", str(walk.status), str(walk.reason), _locomotion_animator.runtime_snapshot)
 
 func _has_push_up_transitions() -> bool:
 	# Phase capability stays false until named clips have been independently bound,
@@ -399,7 +408,7 @@ func _report_current_diagnostics() -> void:
 	if not bool(avatar.get("fallback", false)):
 		_report_diagnostic("AVATAR_FALLBACK", "SKIP")
 
-func _report_diagnostic(stage: String, status: String, reason_code := "") -> void:
+func _report_diagnostic(stage: String, status: String, reason_code := "", details: Dictionary = {}) -> void:
 	if _diagnostic_request_id.is_empty() or stage not in DIAGNOSTIC_STAGES:
 		return
 	_diagnostic_sequence += 1
@@ -410,6 +419,7 @@ func _report_diagnostic(stage: String, status: String, reason_code := "") -> voi
 		"stage": stage, "status": status
 	}
 	if not reason_code.is_empty(): payload["reasonCode"] = reason_code
+	payload.merge(details, true)
 	_post_to_parent(payload)
 
 func _safe_sequence(value: Variant) -> bool:

@@ -71,7 +71,9 @@ func _process(_delta: float) -> void:
 	elif not mufasa_found: first_failure = "MUFASA ASSET"
 	elif web and str(connection.get("status", "")) == "ERROR": first_failure = "POCKETPT PAGE / IFRAME HANDSHAKE"
 	var animation_name := "NONE"
-	if phone_flow != null and phone_flow._animation_player != null:
+	if phone_flow != null and phone_flow._locomotion_animator != null:
+		animation_name = str(phone_flow._locomotion_animator.runtime_snapshot.get("currentClip", "NONE"))
+	elif phone_flow != null and phone_flow._animation_player != null:
 		animation_name = str(phone_flow._animation_player.current_animation)
 	var visual_anchor := player.get_node_or_null("avataranchor") as Node3D if player != null else null
 	var feet_offset := float(avatar.get("floor_offset", 0.0)) + visual_anchor.position.y if avatar_loader != null and visual_anchor != null else 0.0

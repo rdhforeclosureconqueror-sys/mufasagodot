@@ -4,9 +4,11 @@ extends CharacterBody3D
 signal mat_selected()
 signal navigation_state_changed(moving: bool, source: String)
 signal locomotion_speed_changed(horizontal_speed: float, source: String)
+signal locomotion_sampled(sample: Dictionary)
 signal route_finished(arrived: bool)
 
 enum NavigationContext { GYM_NAVIGATION, CAMERA_SETUP, LOCKED }
+enum LocomotionMode { WALK, RUN }
 
 @export var speed := 5.0
 @export var run_speed_multiplier := 1.6
@@ -18,6 +20,9 @@ enum NavigationContext { GYM_NAVIGATION, CAMERA_SETUP, LOCKED }
 @onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
 
 var navigation_context := NavigationContext.GYM_NAVIGATION
+var movement_mode := LocomotionMode.WALK
+var actual_horizontal_displacement := 0.0
+var actual_horizontal_speed := 0.0
 var _remote_direction := Vector2.ZERO
 var _remote_lease_deadline_ms := 0
 var _route_active := false
@@ -49,7 +54,8 @@ func _physics_process(delta: float) -> void:
 	var movement := _resolve_movement()
 	var direction: Vector3 = movement.get("direction", Vector3.ZERO)
 	var source: String = movement.get("source", "NONE")
-	var target_speed := speed * run_speed_multiplier if source == "KEYBOARD" and Input.is_key_pressed(KEY_SHIFT) else speed
+	var effective_mode := LocomotionMode.WALK if source == "AUTO" else movement_mode
+	var target_speed := speed * run_speed_multiplier if effective_mode == LocomotionMode.RUN else speed
 	if direction.length_squared() > 0.0001:
 		velocity.x = direction.x * target_speed
 		velocity.z = direction.z * target_speed
@@ -58,9 +64,20 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, speed)
 	var position_before_move := global_position
 	move_and_slide()
-	var actual_horizontal_speed := Vector2(global_position.x - position_before_move.x, global_position.z - position_before_move.z).length() / maxf(delta, 0.000001)
-	var moving := actual_horizontal_speed > 0.05
+	actual_horizontal_displacement = Vector2(global_position.x - position_before_move.x, global_position.z - position_before_move.z).length()
+	actual_horizontal_speed = actual_horizontal_displacement / maxf(delta, 0.000001)
+	var moving := actual_horizontal_displacement > 0.0005
 	locomotion_speed_changed.emit(actual_horizontal_speed, source)
+	locomotion_sampled.emit({
+		"controlAction": last_move_command,
+		"requestedDirection": Vector2(direction.x, direction.z),
+		"velocity": velocity,
+		"actualHorizontalDisplacement": actual_horizontal_displacement,
+		"actualHorizontalSpeed": actual_horizontal_speed,
+		"movementMode": locomotion_mode_name(effective_mode),
+		"physicalMovementObserved": moving,
+		"source": source,
+	})
 	if moving != _was_moving or source != _last_source:
 		_was_moving = moving
 		_last_source = source
@@ -76,14 +93,24 @@ func set_navigation_context(value: String) -> bool:
 		stop_navigation()
 	return true
 
-func set_remote_intent(direction: Vector2, valid_for_ms: int) -> bool:
+func set_remote_intent(direction: Vector2, valid_for_ms: int, control_action := "REMOTE") -> bool:
 	if navigation_context != NavigationContext.GYM_NAVIGATION or valid_for_ms <= 0 or valid_for_ms > 300:
 		return false
 	_route_active = false
 	_remote_direction = direction.limit_length(1.0)
-	last_move_command = "REMOTE"
+	last_move_command = control_action
 	_remote_lease_deadline_ms = Time.get_ticks_msec() + valid_for_ms
 	return true
+
+func set_locomotion_mode(value: String) -> bool:
+	match value:
+		"WALK": movement_mode = LocomotionMode.WALK
+		"RUN": movement_mode = LocomotionMode.RUN
+		_: return false
+	return true
+
+func locomotion_mode_name(value := movement_mode) -> String:
+	return "RUN" if value == LocomotionMode.RUN else "WALK"
 
 func start_route(target: Vector3) -> bool:
 	if navigation_context != NavigationContext.GYM_NAVIGATION or not navigation_ready():
@@ -95,6 +122,7 @@ func start_route(target: Vector3) -> bool:
 	_route_target = resolved_target
 	navigation_agent.target_position = resolved_target
 	_route_active = true
+	last_move_command = "GO_TO_MAT"
 	return true
 
 func stop_navigation() -> void:

@@ -57,7 +57,11 @@ func _run() -> void:
 	_expect(not flow.ingest_message_for_test(locked_move), "movement rejected while locked")
 	set_context = _control(3, "GYM_NAVIGATION", "SET_CONTEXT")
 	_expect(flow.ingest_message_for_test(set_context), "gym context accepted")
-	var move := _control(4, "GYM_NAVIGATION", "MOVE_FORWARD")
+	var run_mode := _control(4, "GYM_NAVIGATION", "SET_LOCOMOTION_MODE")
+	run_mode["mode"] = "RUN"
+	_expect(flow.ingest_message_for_test(run_mode), "semantic RUN locomotion mode accepted")
+	_expect(player.locomotion_mode_name() == "RUN", "RUN locomotion mode persists on player")
+	var move := _control(5, "GYM_NAVIGATION", "MOVE_FORWARD")
 	move.merge({"validForMs": 300, "intensity": 0.75})
 	_expect(flow.ingest_message_for_test(move), "valid movement lease accepted")
 	_expect(player._remote_lease_deadline_ms > Time.get_ticks_msec(), "movement lease installed")
@@ -65,9 +69,9 @@ func _run() -> void:
 	flow.expire_navigation_for_test()
 	_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")
 
-	var route := _control(5, "GYM_NAVIGATION", "GO_TO_MAT")
+	var route := _control(6, "GYM_NAVIGATION", "GO_TO_MAT")
 	_expect(not flow.ingest_message_for_test(route), "go-to-mat rejected without a synchronized navigation map")
-	var stop := _control(6, "CAMERA_SETUP", "STOP")
+	var stop := _control(7, "CAMERA_SETUP", "STOP")
 	_expect(flow.ingest_message_for_test(stop), "STOP accepted independent of context")
 	_expect(not player.is_route_active(), "STOP leaves route cancelled")
 	_expect(str(flow.state["pending_command"]).is_empty(), "STOP clears pending navigation acknowledgement")
@@ -75,11 +79,11 @@ func _run() -> void:
 	var bad_version := _message("ARENA_FLOW_REQUEST", 1)
 	bad_version["protocolVersion"] = 2
 	_expect(not flow.ingest_message_for_test(bad_version), "wrong protocol rejected")
-	var wrong_source_scope := _control(7, "GYM_NAVIGATION", "MOVE_LEFT")
+	var wrong_source_scope := _control(8, "GYM_NAVIGATION", "MOVE_LEFT")
 	wrong_source_scope["requestId"] = "stale-flow"
 	wrong_source_scope.merge({"validForMs": 300, "intensity": 1.0})
 	_expect(not flow.ingest_message_for_test(wrong_source_scope), "stale request scope rejected")
-	var push_up := _control(7, "GYM_NAVIGATION", "PUSH_UP_START")
+	var push_up := _control(8, "GYM_NAVIGATION", "PUSH_UP_START")
 	_expect(not flow.ingest_message_for_test(push_up), "unsupported push-up transition is not acknowledged")
 	var client := PocketPTGameClient.new()
 	root.add_child(client)

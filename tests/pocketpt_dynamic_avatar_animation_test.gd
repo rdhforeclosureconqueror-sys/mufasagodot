@@ -53,6 +53,8 @@ func _run() -> void:
 	for frame in 12:
 		await process_frame
 	var idle := _sample_bones(skeleton)
+	_trace("STANDING")
+	if not _state_is("IDLE", "player/Idle"): return _fail("STANDING_STATE")
 	var fallback_after := _sample_available_bones(fallback_skeleton)
 	_print_changes("IDLE", rest, idle)
 	if not _changed(rest, idle):
@@ -64,6 +66,8 @@ func _run() -> void:
 	for frame in 18:
 		await physics_frame
 	var walk := _sample_bones(skeleton)
+	_trace("FORWARD_WALK")
+	if not _state_is("WALK", "player/Walk"): return _fail("MOVING_BODY_STUCK_IN_IDLE")
 	_print_changes("WALK", idle, walk)
 	if animator.current_state != &"WALK" or not _changed(idle, walk):
 		return _fail("WALK_NOT_AFFECTING_PERSONAL_SKELETON")
@@ -72,21 +76,38 @@ func _run() -> void:
 		await physics_frame
 	if animator.current_state != &"IDLE":
 		return _fail("STOP_NOT_IDLE")
+	_trace("WALK_RELEASE")
+	if not _state_is("IDLE", "player/Idle"): return _fail("STOP_STATE")
+	player.set_locomotion_mode("RUN")
 	Input.action_press("ui_up")
-	var shift := InputEventKey.new()
-	shift.keycode = KEY_SHIFT
-	shift.pressed = true
-	Input.parse_input_event(shift)
 	for frame in 30:
 		await physics_frame
 	var run := _sample_bones(skeleton)
+	_trace("FORWARD_RUN")
+	if not _state_is("RUN", "player/Run"): return _fail("RUN_STATE_NOT_ACTIVE")
 	if animator.current_state != &"RUN" or not _changed(idle, run):
 		return _fail("RUN_NOT_AFFECTING_PERSONAL_SKELETON")
 	Input.action_release("ui_up")
-	shift.pressed = false
-	Input.parse_input_event(shift)
 	player.stop_navigation()
-	for frame in 4: await physics_frame
+	for frame in 30: await physics_frame
+	_trace("RUN_RELEASE")
+	if not _state_is("IDLE", "player/Idle"): return _fail("RUN_STOP_STATE")
+	player.set_locomotion_mode("WALK")
+	var mat_targets := get_nodes_in_group("pocketpt_mat_target")
+	if mat_targets.is_empty(): return _fail("MAT_TARGET")
+	var arrived := [false]
+	player.route_finished.connect(func(ok: bool): arrived[0] = ok)
+	if not player.start_route((mat_targets[0] as Node3D).global_position): return _fail("GO_TO_MAT_START")
+	for frame in 30: await physics_frame
+	_trace("GO_TO_MAT")
+	if not _state_is("WALK", "player/Walk"): return _fail("GO_TO_MAT_NOT_WALK")
+	for frame in 450:
+		await physics_frame
+		if arrived[0]: break
+	if not arrived[0]: return _fail("GO_TO_MAT_ARRIVAL")
+	for frame in 20: await physics_frame
+	_trace("GO_TO_MAT_ARRIVAL")
+	if not _state_is("IDLE", "player/Idle"): return _fail("ARRIVAL_NOT_IDLE")
 	if not animator.request_action(&"action/ThrillerPart1"):
 		return _fail("THRILLER_REQUEST")
 	for frame in 12:
@@ -172,6 +193,13 @@ func _changed(before: Dictionary, after: Dictionary) -> bool:
 func _print_changes(label: String, before: Dictionary, after: Dictionary) -> void:
 	for bone_name in BONES:
 		print("BONE_CHANGE state=%s bone=%s changed=%s" % [label, bone_name, not (before[bone_name] as Transform3D).is_equal_approx(after[bone_name])])
+
+func _trace(stage: String) -> void:
+	var sample := animator.runtime_snapshot
+	print("LOCOMOTION_TRACE stage=%s action=%s direction=%s velocity=%s displacement=%.6f mode=%s requested=%s actual_tree=%s clip=%s moving=%s" % [stage, sample.get("controlAction"), sample.get("requestedDirection"), sample.get("velocity"), float(sample.get("actualHorizontalDisplacement", 0.0)), sample.get("movementMode"), sample.get("requestedLocomotionState"), sample.get("actualAnimationTreeState"), sample.get("currentClip"), sample.get("physicalMovementObserved")])
+
+func _state_is(state_name: String, clip_name: String) -> bool:
+	return str(animator.runtime_snapshot.get("requestedLocomotionState")) == state_name and str(animator.runtime_snapshot.get("actualAnimationTreeState")) == state_name and str(animator.runtime_snapshot.get("currentClip")) == clip_name
 
 func _fail(boundary: String) -> void:
 	push_error("POCKETPT_DYNAMIC_AVATAR_ANIMATION_TEST: FAIL " + boundary)

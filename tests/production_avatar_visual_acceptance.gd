@@ -48,16 +48,12 @@ func _run() -> void:
 		if arrived[0]: break
 	if not arrived[0]: return _fail("GO_TO_MAT_ARRIVAL")
 	await _stage("E_GO_TO_MAT_IDLE")
+	player.set_locomotion_mode("RUN")
 	Input.action_press("ui_up")
-	var shift_down := InputEventKey.new()
-	shift_down.keycode = KEY_SHIFT
-	shift_down.pressed = true
-	Input.parse_input_event(shift_down)
 	for frame in 12: await physics_frame
 	await _stage("F_RUN")
 	Input.action_release("ui_up")
-	shift_down.pressed = false
-	Input.parse_input_event(shift_down)
+	player.set_locomotion_mode("WALK")
 	player.stop_navigation()
 	for frame in 4: await physics_frame
 	if not animator.request_action(&"action/ThrillerPart1"): return _fail("THRILLER_START")

@@ -18,9 +18,14 @@ var binding_error := "AVATAR_SKELETON_NOT_BOUND"
 var _last_pose: Dictionary = {}
 var _observed_states: Dictionary = {}
 var _walk_displacement_seen := false
+var runtime_snapshot: Dictionary = {
+	"movementMode": "WALK", "actualHorizontalDisplacement": 0.0,
+	"requestedLocomotionState": "IDLE", "actualAnimationTreeState": "IDLE",
+	"currentClip": "player/Idle", "physicalMovementObserved": false,
+}
 
 func bind(player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> void:
-	player.locomotion_speed_changed.connect(_on_locomotion_speed_changed.bind(player.speed, player.speed * player.run_speed_multiplier))
+	player.locomotion_sampled.connect(_on_locomotion_sampled)
 	avatar_loader.avatar_mounted.connect(_on_avatar_mounted)
 
 func _on_avatar_mounted(avatar_root: Node3D) -> void:
@@ -70,9 +75,26 @@ func _process(_delta: float) -> void:
 
 func diagnostic_status(state_name: StringName) -> Dictionary:
 	if not binding_error.is_empty(): return {"status": "FAIL", "reason": binding_error}
+	var actual_state := StringName(runtime_snapshot.get("actualAnimationTreeState", ""))
+	var requested_state := StringName(runtime_snapshot.get("requestedLocomotionState", ""))
+	var moving := bool(runtime_snapshot.get("physicalMovementObserved", false))
+	if moving and actual_state == &"IDLE": return {"status": "FAIL", "reason": "MOVING_BODY_STUCK_IN_IDLE"}
+	if moving and requested_state == &"WALK" and actual_state != &"WALK": return {"status": "FAIL", "reason": "WALK_STATE_NOT_ACTIVE"}
+	if moving and requested_state == &"RUN" and actual_state != &"RUN": return {"status": "FAIL", "reason": "RUN_STATE_NOT_ACTIVE"}
 	if state_name == &"WALK" and not _walk_displacement_seen: return {"status": "WAITING", "reason": "WALK_NOT_PLAYING"}
 	if bool(_observed_states.get(state_name, false)): return {"status": "PASS", "reason": ""}
 	return {"status": "WAITING", "reason": "%s_NOT_PLAYING" % String(state_name)}
+
+func locomotion_diagnostic_status() -> Dictionary:
+	if not binding_error.is_empty(): return {"status": "FAIL", "reason": binding_error}
+	var actual_state := StringName(runtime_snapshot.get("actualAnimationTreeState", ""))
+	var requested_state := StringName(runtime_snapshot.get("requestedLocomotionState", ""))
+	var moving := bool(runtime_snapshot.get("physicalMovementObserved", false))
+	if moving and actual_state == &"IDLE": return {"status": "FAIL", "reason": "MOVING_BODY_STUCK_IN_IDLE"}
+	if moving and requested_state == &"WALK" and actual_state != &"WALK": return {"status": "FAIL", "reason": "WALK_STATE_NOT_ACTIVE"}
+	if moving and requested_state == &"RUN" and actual_state != &"RUN": return {"status": "FAIL", "reason": "RUN_STATE_NOT_ACTIVE"}
+	if bool(_observed_states.get(&"WALK", false)) or bool(_observed_states.get(&"RUN", false)): return {"status": "PASS", "reason": ""}
+	return {"status": "WAITING", "reason": "WALK_NOT_PLAYING"}
 
 func _validate_track_targets() -> String:
 	if animation_player == null or active_skeleton == null: return "ANIMATION_PLAYER_NOT_BOUND"
@@ -130,11 +152,40 @@ func _on_animation_finished(animation_name: StringName) -> void:
 	_playback = animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
 	_playback.start(&"IDLE")
 
-func _on_locomotion_speed_changed(actual_speed: float, _source: String, walk_speed: float, run_speed: float) -> void:
+func _on_locomotion_sampled(sample: Dictionary) -> void:
 	if action_override_active: return
+	var actual_displacement := float(sample.get("actualHorizontalDisplacement", 0.0))
+	var movement_mode := str(sample.get("movementMode", "WALK"))
 	var next_state := &"IDLE"
-	if actual_speed > 0.05: next_state = &"RUN" if actual_speed >= lerpf(walk_speed, run_speed, 0.5) else &"WALK"
+	if actual_displacement > 0.0005: next_state = &"RUN" if movement_mode == "RUN" else &"WALK"
 	if next_state == &"WALK": _walk_displacement_seen = true
-	if next_state == current_state: return
-	current_state = next_state
-	if _playback != null: _playback.travel(current_state)
+	if next_state != current_state:
+		current_state = next_state
+		if _playback != null: _playback.travel(current_state)
+	_update_runtime_snapshot(sample, next_state)
+
+func _update_runtime_snapshot(sample: Dictionary, requested_state: StringName) -> void:
+	var actual_state := StringName("UNBOUND")
+	if _playback != null: actual_state = _playback.get_current_node()
+	var clip := _clip_for_state(actual_state)
+	if action_override_active and animation_player != null: clip = str(animation_player.current_animation)
+	runtime_snapshot = {
+		"controlAction": sample.get("controlAction", "NONE"),
+		"requestedDirection": sample.get("requestedDirection", Vector2.ZERO),
+		"velocity": sample.get("velocity", Vector3.ZERO),
+		"actualHorizontalDisplacement": sample.get("actualHorizontalDisplacement", 0.0),
+		"actualHorizontalSpeed": sample.get("actualHorizontalSpeed", 0.0),
+		"movementMode": sample.get("movementMode", "WALK"),
+		"requestedLocomotionState": String(requested_state),
+		"actualAnimationTreeState": String(actual_state),
+		"currentClip": clip,
+		"physicalMovementObserved": sample.get("physicalMovementObserved", false),
+	}
+	runtime_evidence_changed.emit()
+
+func _clip_for_state(state_name: StringName) -> String:
+	match state_name:
+		&"IDLE": return "player/Idle"
+		&"WALK": return "player/Walk"
+		&"RUN": return "player/Run"
+		_: return ""
