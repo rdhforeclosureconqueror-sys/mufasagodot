@@ -58,3 +58,5 @@ jobs:
           git diff --cached --check
           git commit -m "Harden action rebind and fallback facing [skip ci]"
           git push origin HEAD:fix/walk-facing-thriller-20260913
+
+# rerun after correcting mutable signal assertion
