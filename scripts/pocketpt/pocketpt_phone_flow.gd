@@ -88,6 +88,7 @@ func capabilities() -> Dictionary:
 	return {
 		"contextLock": true,
 		"touchNavigation": true,
+		"vectorNavigation": true,
 		"matApproach": _mat_target != null and is_instance_valid(_mat_target) and _player != null and _player.navigation_ready(),
 		"pushUpTransition": _has_push_up_transitions()
 	}
@@ -198,6 +199,24 @@ func _accept_message(message: Dictionary) -> bool:
 		return true
 	if context != str(state["context"]):
 		return false
+	if action == "MOVE_VECTOR":
+		var valid_for = message.get("validForMs")
+		var x_value = message.get("x")
+		var y_value = message.get("y")
+		if not _exact_bounded_number(valid_for, 1.0, 300.0) or not _exact_bounded_number(x_value, -1.0, 1.0) or not _exact_bounded_number(y_value, -1.0, 1.0):
+			return false
+		var movement_vector := Vector2(float(x_value), float(y_value))
+		if movement_vector.length_squared() <= 0.0025:
+			return false
+		movement_vector = movement_vector.normalized()
+		if not _player.set_remote_intent(movement_vector, int(valid_for), action):
+			return false
+		_clear_navigation_command()
+		_requested_motion_action = action
+		state["last_action"] = action
+		state["incoming_sequence"] = sequence
+		_publish()
+		return true
 	if action in DIRECTIONS:
 		var valid_for = message.get("validForMs")
 		var intensity_value = message.get("intensity", 1.0)

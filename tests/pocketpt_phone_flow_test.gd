@@ -39,8 +39,8 @@ func _run() -> void:
 	_expect(flow.state["incoming_sequence"] == 1, "incoming request sequence stored")
 	_expect(flow.state["outgoing_sequence"] == 1, "capability response uses independent outgoing sequence")
 	_expect(outbound.size() == 1 and outbound[0].get("event") == "ARENA_FLOW_CAPABILITIES", "capability response is prepared for the parent")
-	_expect(outbound[0].get("capabilities") == {"contextLock": true, "touchNavigation": true, "matApproach": false, "pushUpTransition": false}, "prepared capabilities are truthful")
-	_expect(flow.capabilities() == {"contextLock": true, "touchNavigation": true, "matApproach": false, "pushUpTransition": false}, "truthful capabilities before navigation synchronization")
+	_expect(outbound[0].get("capabilities") == {"contextLock": true, "touchNavigation": true, "vectorNavigation": true, "matApproach": false, "pushUpTransition": false}, "prepared capabilities are truthful")
+	_expect(flow.capabilities() == {"contextLock": true, "touchNavigation": true, "vectorNavigation": true, "matApproach": false, "pushUpTransition": false}, "truthful capabilities before navigation synchronization")
 	_expect(not flow.ingest_message_for_test(request), "duplicate request does not reset channel")
 	var diagnostic_request := {"type": "POCKETPT_GODOT_BRIDGE", "protocolVersion": 1, "event": "DIAGNOSTICS_REQUEST", "diagnosticVersion": 1, "requestId": "diagnostic-test"}
 	_expect(flow.ingest_message_for_test(diagnostic_request), "diagnostic reporter request accepted")
@@ -69,9 +69,21 @@ func _run() -> void:
 	flow.expire_navigation_for_test()
 	_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")
 
-	var route := _control(6, "GYM_NAVIGATION", "GO_TO_MAT")
+	flow.state["pending_command"] = "GO_TO_MAT"
+	flow._pending_reply_to = 5
+	var joystick := _control(6, "GYM_NAVIGATION", "MOVE_VECTOR")
+	joystick.merge({"validForMs": 300, "x": 0.6, "y": -0.8})
+	_expect(flow.ingest_message_for_test(joystick), "360 joystick movement vector accepted")
+	_expect(player._remote_direction.distance_to(Vector2(0.6, -0.8)) < 0.0001, "joystick preserves diagonal direction")
+	_expect(str(flow.state["pending_command"]).is_empty() and flow._pending_reply_to == 0, "joystick takeover clears stale GO_TO_MAT acknowledgement")
+	var invalid_joystick := _control(7, "GYM_NAVIGATION", "MOVE_VECTOR")
+	invalid_joystick.merge({"validForMs": 300, "x": 1.5, "y": 0.0})
+	_expect(not flow.ingest_message_for_test(invalid_joystick), "out-of-range joystick vector rejected")
+	flow.expire_navigation_for_test()
+
+	var route := _control(7, "GYM_NAVIGATION", "GO_TO_MAT")
 	_expect(not flow.ingest_message_for_test(route), "go-to-mat rejected without a synchronized navigation map")
-	var stop := _control(7, "CAMERA_SETUP", "STOP")
+	var stop := _control(8, "CAMERA_SETUP", "STOP")
 	_expect(flow.ingest_message_for_test(stop), "STOP accepted independent of context")
 	_expect(not player.is_route_active(), "STOP leaves route cancelled")
 	_expect(str(flow.state["pending_command"]).is_empty(), "STOP clears pending navigation acknowledgement")
@@ -79,11 +91,11 @@ func _run() -> void:
 	var bad_version := _message("ARENA_FLOW_REQUEST", 1)
 	bad_version["protocolVersion"] = 2
 	_expect(not flow.ingest_message_for_test(bad_version), "wrong protocol rejected")
-	var wrong_source_scope := _control(8, "GYM_NAVIGATION", "MOVE_LEFT")
+	var wrong_source_scope := _control(9, "GYM_NAVIGATION", "MOVE_LEFT")
 	wrong_source_scope["requestId"] = "stale-flow"
 	wrong_source_scope.merge({"validForMs": 300, "intensity": 1.0})
 	_expect(not flow.ingest_message_for_test(wrong_source_scope), "stale request scope rejected")
-	var push_up := _control(8, "GYM_NAVIGATION", "PUSH_UP_START")
+	var push_up := _control(9, "GYM_NAVIGATION", "PUSH_UP_START")
 	_expect(not flow.ingest_message_for_test(push_up), "unsupported push-up transition is not acknowledged")
 	var client := PocketPTGameClient.new()
 	root.add_child(client)
