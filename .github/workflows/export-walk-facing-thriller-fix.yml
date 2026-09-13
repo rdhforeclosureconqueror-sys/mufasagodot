@@ -1,0 +1,114 @@
+name: Export Walk Facing Thriller Candidate
+
+on:
+  push:
+    branches:
+      - fix/walk-facing-thriller-20260913
+    paths:
+      - .github/workflows/export-walk-facing-thriller-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: walk-facing-thriller-export
+  cancel-in-progress: true
+
+jobs:
+  export-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout fixed Godot source
+        uses: actions/checkout@v4
+        with:
+          ref: fix/walk-facing-thriller-20260913
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Install matching Web templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/godot-templates/templates/. "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/web_release.zip"
+
+      - name: Import project resources
+        run: '"$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit'
+
+      - name: Verify repaired animation source before export
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tools/verify_live_locomotion_fix.gd
+          grep -q '_face_visual_direction(direction, delta)' player.gd
+          grep -q '_locomotion_animator.request_action(&"ThrillerPart1")' scripts/pocketpt/pocketpt_phone_flow.gd
+
+      - name: Export Web candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/ci-web
+          mkdir -p build/ci-web
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/ci-web/index.html
+          for file in index.html index.js index.pck index.wasm; do
+            test -s "build/ci-web/$file"
+          done
+
+      - name: Record exact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "godot_source_commit=${GITHUB_SHA}"
+            echo "godot_version=4.5.1"
+            echo "preset=Web"
+            echo "walk_source=res://assets/animations/player/rashad_walk_corrected.glb"
+            echo "thriller_source=res://assets/animations/player/rashad_thriller_part1_target_native.glb"
+            echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum build/ci-web/index.html build/ci-web/index.js build/ci-web/index.pck build/ci-web/index.wasm
+          } | tee build/ci-web/BUILD_PROVENANCE.txt
+          ls -lh build/ci-web
+
+      - name: Publish exact candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/fix/walk-facing-thriller-20260913:refs/remotes/origin/fix/walk-facing-thriller-20260913
+          LATEST_SOURCE_SHA="$(git rev-parse refs/remotes/origin/fix/walk-facing-thriller-20260913)"
+          if [[ "$LATEST_SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Superseded export: $GITHUB_SHA is no longer current source ($LATEST_SOURCE_SHA)." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B generated/walk-facing-thriller-candidate
+          git add -f build/ci-web
+          git commit -m "Publish Walk facing Thriller candidate ${GITHUB_SHA}"
+          git push origin HEAD:generated/walk-facing-thriller-candidate --force
+
+      - name: Upload candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: walk-facing-thriller-candidate-${{ github.sha }}
+          path: build/ci-web/
+          if-no-files-found: error
+          retention-days: 14
