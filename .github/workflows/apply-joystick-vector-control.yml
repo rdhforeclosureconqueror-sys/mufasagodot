@@ -2,6 +2,10 @@ name: Apply Joystick Vector Control
 
 on:
   push:
+    branches:
+      - feat/joystick-vector-control-20260913
+    paths:
+      - .github/workflows/apply-joystick-vector-control.yml
 
 permissions:
   contents: write
@@ -24,51 +28,53 @@ jobs:
           path = Path('scripts/pocketpt/pocketpt_phone_flow.gd')
           text = path.read_text()
           old = '\tif context != str(state["context"]):\n\t\treturn false\n\tif action in DIRECTIONS:\n'
-          new = '''\tif context != str(state["context"]):
-\t\treturn false
-\tif action == "MOVE_VECTOR":
-\t\tvar valid_for = message.get("validForMs")
-\t\tvar x_value = message.get("x")
-\t\tvar y_value = message.get("y")
-\t\tif not _exact_bounded_number(valid_for, 1.0, 300.0) or not _exact_bounded_number(x_value, -1.0, 1.0) or not _exact_bounded_number(y_value, -1.0, 1.0):
-\t\t\treturn false
-\t\tvar movement_vector := Vector2(float(x_value), float(y_value))
-\t\tif movement_vector.length_squared() <= 0.0025:
-\t\t\treturn false
-\t\tmovement_vector = movement_vector.normalized()
-\t\tif not _player.set_remote_intent(movement_vector, int(valid_for), action):
-\t\t\treturn false
-\t\t_requested_motion_action = action
-\t\tstate["last_action"] = action
-\t\tstate["incoming_sequence"] = sequence
-\t\t_publish()
-\t\treturn true
-\tif action in DIRECTIONS:
-'''
+          new_lines = [
+              '\tif context != str(state["context"]):',
+              '\t\treturn false',
+              '\tif action == "MOVE_VECTOR":',
+              '\t\tvar valid_for = message.get("validForMs")',
+              '\t\tvar x_value = message.get("x")',
+              '\t\tvar y_value = message.get("y")',
+              '\t\tif not _exact_bounded_number(valid_for, 1.0, 300.0) or not _exact_bounded_number(x_value, -1.0, 1.0) or not _exact_bounded_number(y_value, -1.0, 1.0):',
+              '\t\t\treturn false',
+              '\t\tvar movement_vector := Vector2(float(x_value), float(y_value))',
+              '\t\tif movement_vector.length_squared() <= 0.0025:',
+              '\t\t\treturn false',
+              '\t\tmovement_vector = movement_vector.normalized()',
+              '\t\tif not _player.set_remote_intent(movement_vector, int(valid_for), action):',
+              '\t\t\treturn false',
+              '\t\t_requested_motion_action = action',
+              '\t\tstate["last_action"] = action',
+              '\t\tstate["incoming_sequence"] = sequence',
+              '\t\t_publish()',
+              '\t\treturn true',
+              '\tif action in DIRECTIONS:',
+          ]
           if old not in text:
               raise SystemExit('FIRST FAILURE expected movement insertion point not found')
-          path.write_text(text.replace(old, new, 1))
+          path.write_text(text.replace(old, '\n'.join(new_lines) + '\n', 1))
 
           test_path = Path('tests/pocketpt_phone_flow_test.gd')
           test = test_path.read_text()
           anchor = '\tflow.expire_navigation_for_test()\n\t_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")\n\n\tvar route := _control(6, "GYM_NAVIGATION", "GO_TO_MAT")\n'
-          replacement = '''\tflow.expire_navigation_for_test()
-\t_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")
-
-\tvar joystick := _control(6, "GYM_NAVIGATION", "MOVE_VECTOR")
-\tjoystick.merge({"validForMs": 300, "x": 0.6, "y": -0.8})
-\t_expect(flow.ingest_message_for_test(joystick), "360 joystick movement vector accepted")
-\t_expect(player._remote_direction.distance_to(Vector2(0.6, -0.8)) < 0.0001, "joystick preserves diagonal direction")
-\tvar invalid_joystick := _control(7, "GYM_NAVIGATION", "MOVE_VECTOR")
-\tinvalid_joystick.merge({"validForMs": 300, "x": 1.5, "y": 0.0})
-\t_expect(not flow.ingest_message_for_test(invalid_joystick), "out-of-range joystick vector rejected")
-\tflow.expire_navigation_for_test()
-
-\tvar route := _control(7, "GYM_NAVIGATION", "GO_TO_MAT")
-'''
+          replacement_lines = [
+              '\tflow.expire_navigation_for_test()',
+              '\t_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")',
+              '',
+              '\tvar joystick := _control(6, "GYM_NAVIGATION", "MOVE_VECTOR")',
+              '\tjoystick.merge({"validForMs": 300, "x": 0.6, "y": -0.8})',
+              '\t_expect(flow.ingest_message_for_test(joystick), "360 joystick movement vector accepted")',
+              '\t_expect(player._remote_direction.distance_to(Vector2(0.6, -0.8)) < 0.0001, "joystick preserves diagonal direction")',
+              '\tvar invalid_joystick := _control(7, "GYM_NAVIGATION", "MOVE_VECTOR")',
+              '\tinvalid_joystick.merge({"validForMs": 300, "x": 1.5, "y": 0.0})',
+              '\t_expect(not flow.ingest_message_for_test(invalid_joystick), "out-of-range joystick vector rejected")',
+              '\tflow.expire_navigation_for_test()',
+              '',
+              '\tvar route := _control(7, "GYM_NAVIGATION", "GO_TO_MAT")',
+          ]
           if anchor not in test:
               raise SystemExit('FIRST FAILURE expected test insertion point not found')
-          test = test.replace(anchor, replacement, 1)
+          test = test.replace(anchor, '\n'.join(replacement_lines) + '\n', 1)
           test = test.replace('var stop := _control(7, "CAMERA_SETUP", "STOP")', 'var stop := _control(8, "CAMERA_SETUP", "STOP")', 1)
           test = test.replace('var wrong_source_scope := _control(8, "GYM_NAVIGATION", "MOVE_LEFT")', 'var wrong_source_scope := _control(9, "GYM_NAVIGATION", "MOVE_LEFT")', 1)
           test = test.replace('var push_up := _control(8, "GYM_NAVIGATION", "PUSH_UP_START")', 'var push_up := _control(9, "GYM_NAVIGATION", "PUSH_UP_START")', 1)
@@ -86,10 +92,14 @@ jobs:
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
 
       - name: Import project
-        run: "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+        shell: bash
+        run: |
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
 
       - name: Run phone-flow joystick regression
-        run: "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tests/pocketpt_phone_flow_test.gd
+        shell: bash
+        run: |
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tests/pocketpt_phone_flow_test.gd
 
       - name: Commit validated Godot joystick source
         shell: bash
