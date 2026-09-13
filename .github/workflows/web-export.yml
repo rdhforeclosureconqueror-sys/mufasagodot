@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: godot-web-export-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   export-web:
     runs-on: ubuntu-latest
@@ -82,6 +86,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/* ]]; then
+            echo "Candidate publishing requires a branch ref; got $GITHUB_REF" >&2
+            exit 1
+          fi
+          SOURCE_REF="${GITHUB_REF#refs/heads/}"
+          git fetch --no-tags origin "refs/heads/${SOURCE_REF}:refs/remotes/origin/${SOURCE_REF}"
+          LATEST_SOURCE_SHA="$(git rev-parse "refs/remotes/origin/${SOURCE_REF}")"
+          if [[ "$LATEST_SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Superseded export: $GITHUB_SHA is no longer the head of $SOURCE_REF ($LATEST_SOURCE_SHA). Skipping publish."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B generated/web-candidate
