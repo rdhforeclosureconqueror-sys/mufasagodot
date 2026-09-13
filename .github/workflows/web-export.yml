@@ -1,0 +1,87 @@
+name: Godot Web Export
+
+on:
+  push:
+    branches:
+      - main
+      - ci/phone-web-export-20260913
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Godot project
+        uses: actions/checkout@v4
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -o /tmp/godot.zip \
+            https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Install Godot Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -o /tmp/templates.tpz \
+            https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/godot-templates/templates/. "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/web_release.zip"
+
+      - name: Import project resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Export verified Web candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/ci-web
+          mkdir -p build/ci-web
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/ci-web/index.html
+          for file in index.html index.js index.pck index.wasm; do
+            test -s "build/ci-web/$file"
+          done
+
+      - name: Record candidate provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "godot_source_commit=${GITHUB_SHA}"
+            echo "godot_version=4.5.1"
+            echo "preset=Web"
+            echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum build/ci-web/index.html build/ci-web/index.js build/ci-web/index.pck build/ci-web/index.wasm
+          } | tee build/ci-web/BUILD_PROVENANCE.txt
+          ls -lh build/ci-web
+
+      - name: Upload Web candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-web-candidate-${{ github.sha }}
+          path: build/ci-web/
+          if-no-files-found: error
+          retention-days: 14
