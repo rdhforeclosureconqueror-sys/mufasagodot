@@ -179,6 +179,21 @@ func _accept_message(message: Dictionary) -> bool:
 		state["movementMode"] = mode
 		_publish()
 		return true
+	if action == "PLAY_ACTION":
+		var action_name := str(message.get("name", ""))
+		if context != str(state["context"]) or context != "GYM_NAVIGATION" or action_name != "ThrillerPart1":
+			return false
+		if _locomotion_animator == null:
+			return false
+		_player.stop_navigation()
+		_clear_navigation_command()
+		if not _locomotion_animator.request_action(&"ThrillerPart1"):
+			return false
+		_requested_motion_action = ""
+		state["last_action"] = action
+		state["incoming_sequence"] = sequence
+		_publish()
+		return true
 	if context != str(state["context"]):
 		return false
 	if action in DIRECTIONS:

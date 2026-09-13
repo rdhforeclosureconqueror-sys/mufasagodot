@@ -15,9 +15,11 @@ enum LocomotionMode { WALK, RUN }
 @export var jump_velocity := 4.5
 @export var gravity := 12.0
 @export var mat_arrival_distance := 0.35
+@export var visual_turn_speed := 12.0
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
+@onready var avatar_anchor: Node3D = $avataranchor
 
 var navigation_context := NavigationContext.GYM_NAVIGATION
 var movement_mode := LocomotionMode.WALK
@@ -57,6 +59,7 @@ func _physics_process(delta: float) -> void:
 	var effective_mode := LocomotionMode.WALK if source == "AUTO" else movement_mode
 	var target_speed := speed * run_speed_multiplier if effective_mode == LocomotionMode.RUN else speed
 	if direction.length_squared() > 0.0001:
+		_face_visual_direction(direction, delta)
 		velocity.x = direction.x * target_speed
 		velocity.z = direction.z * target_speed
 	else:
@@ -76,12 +79,24 @@ func _physics_process(delta: float) -> void:
 		"actualHorizontalSpeed": actual_horizontal_speed,
 		"movementMode": locomotion_mode_name(effective_mode),
 		"physicalMovementObserved": moving,
+		"visualFacingYaw": avatar_anchor.rotation.y if avatar_anchor != null else 0.0,
 		"source": source,
 	})
 	if moving != _was_moving or source != _last_source:
 		_was_moving = moving
 		_last_source = source
 		navigation_state_changed.emit(moving, source)
+
+func _face_visual_direction(world_direction: Vector3, delta: float) -> void:
+	if avatar_anchor == null:
+		return
+	var local_direction := global_transform.basis.inverse() * world_direction
+	local_direction.y = 0.0
+	if local_direction.length_squared() <= 0.0001:
+		return
+	local_direction = local_direction.normalized()
+	var target_yaw := atan2(-local_direction.x, -local_direction.z)
+	avatar_anchor.rotation.y = lerp_angle(avatar_anchor.rotation.y, target_yaw, clampf(visual_turn_speed * delta, 0.0, 1.0))
 
 func set_navigation_context(value: String) -> bool:
 	match value:
