@@ -41,7 +41,7 @@ func _ready() -> void:
 		phone_flow = PhoneFlowScript.new()
 		phone_flow.name = "PocketPTPhoneFlow"
 		add_child(phone_flow)
-		phone_flow.bind(client, player, avatar_loader)
+		phone_flow.bind(client, player, avatar_loader, locomotion_animator)
 		debug_ui.bind_runtime(phone_flow, player)
 
 	client.call_deferred("initialize")

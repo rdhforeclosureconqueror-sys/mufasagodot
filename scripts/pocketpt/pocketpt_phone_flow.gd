@@ -31,6 +31,7 @@ var state: Dictionary = {
 var _client: PocketPTGameClient
 var _player: GymPlayerController
 var _avatar_loader: PocketPTAvatarLoader
+var _locomotion_animator: PocketPTLocomotionAnimator
 var _browser_callback = null
 var _diagnostic_request_id := ""
 var _diagnostic_sequence := 0
@@ -44,10 +45,11 @@ var _strafe_right_clip := ""
 var _requested_motion_action := ""
 var _session_expiry_unix := -1.0
 
-func bind(client: PocketPTGameClient, player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> void:
+func bind(client: PocketPTGameClient, player: GymPlayerController, avatar_loader: PocketPTAvatarLoader, locomotion_animator: PocketPTLocomotionAnimator = null) -> void:
 	_client = client
 	_player = player
 	_avatar_loader = avatar_loader
+	_locomotion_animator = locomotion_animator
 	_client.connection_state_changed.connect(_on_connection_state_changed)
 	_client.bootstrap_accepted.connect(_on_bootstrap_accepted)
 	_client.session_ending.connect(_disconnect_flow)
@@ -57,6 +59,8 @@ func bind(client: PocketPTGameClient, player: GymPlayerController, avatar_loader
 	_avatar_loader.avatar_state_changed.connect(_on_avatar_state_changed)
 	_avatar_loader.avatar_mounted.connect(_on_avatar_mounted)
 	_avatar_loader.fallback_activated.connect(_on_fallback_activated)
+	if _locomotion_animator != null:
+		_locomotion_animator.runtime_evidence_changed.connect(_on_animation_evidence_changed)
 	call_deferred("_resolve_mat_target")
 	_install_browser_receiver()
 	set_process(true)
@@ -299,6 +303,10 @@ func _inspect_animations(root: Node) -> void:
 	_strafe_left_clip = ""
 	_strafe_right_clip = ""
 	if bool(root.get_meta("pocketpt_shared_locomotion", false)):
+		if _locomotion_animator != null:
+			_animation_player = _locomotion_animator.animation_player
+			_idle_clip = "player/Idle"
+			_walk_clip = "player/Walk"
 		state["animations"] = PackedStringArray(["player/Idle", "player/Walk", "player/Run"])
 		_publish()
 		return
@@ -330,13 +338,28 @@ func _inspect_animations(root: Node) -> void:
 		_animation_player.play(_idle_clip)
 	_publish()
 
+func _on_animation_evidence_changed() -> void:
+	if _locomotion_animator != null and _locomotion_animator._avatar_root != null:
+		_inspect_animations(_locomotion_animator._avatar_root)
+	if not _diagnostic_request_id.is_empty(): _report_animation_diagnostics()
+
+func _report_animation_diagnostics() -> void:
+	if _locomotion_animator == null:
+		_report_diagnostic("ANIMATION_IDLE", "NOT_CONNECTED", "ANIMATION_PLAYER_NOT_BOUND")
+		_report_diagnostic("LOCOMOTION", "NOT_CONNECTED", "ANIMATION_PLAYER_NOT_BOUND")
+		return
+	var idle := _locomotion_animator.diagnostic_status(&"IDLE")
+	var walk := _locomotion_animator.diagnostic_status(&"WALK")
+	_report_diagnostic("ANIMATION_IDLE", str(idle.status), str(idle.reason))
+	_report_diagnostic("LOCOMOTION", str(walk.status), str(walk.reason))
+
 func _has_push_up_transitions() -> bool:
 	# Phase capability stays false until named clips have been independently bound,
 	# played to completion, and interruption/restoration behavior is implemented.
 	return false
 
 func _on_navigation_state_changed(moving: bool, _source: String) -> void:
-	if _animation_player != null:
+	if _locomotion_animator == null and _animation_player != null:
 		var target_clip := _walk_clip if moving else _idle_clip
 		if moving and _requested_motion_action == "MOVE_LEFT" and not _strafe_left_clip.is_empty():
 			target_clip = _strafe_left_clip
@@ -345,7 +368,8 @@ func _on_navigation_state_changed(moving: bool, _source: String) -> void:
 		if not target_clip.is_empty() and _animation_player.current_animation != target_clip:
 			_animation_player.play(target_clip, 0.15)
 	if not _diagnostic_request_id.is_empty():
-		_report_diagnostic("LOCOMOTION", ("RUNNING" if moving else "PASS") if not _walk_clip.is_empty() else "NOT_CONNECTED")
+		if _locomotion_animator != null: _report_animation_diagnostics()
+		else: _report_diagnostic("LOCOMOTION", ("RUNNING" if moving else "PASS") if not _walk_clip.is_empty() else "NOT_CONNECTED")
 
 func _on_avatar_state_changed(avatar: Dictionary) -> void:
 	if str(avatar.get("error_code", "")) == PocketPTAvatarLoader.ERROR_SESSION_EXPIRED:
@@ -369,23 +393,24 @@ func _report_current_diagnostics() -> void:
 	_report_diagnostic("CHALLENGE_STATE", "NOT_CONNECTED")
 	var avatar := _avatar_loader.avatar_state
 	_on_avatar_state_changed(avatar)
-	_report_diagnostic("ANIMATION_IDLE", "PASS" if not _idle_clip.is_empty() else "NOT_CONNECTED")
-	_report_diagnostic("LOCOMOTION", "PASS" if not _walk_clip.is_empty() else "NOT_CONNECTED")
+	_report_animation_diagnostics()
 	_report_diagnostic("MAT_APPROACH", "WAITING" if bool(capabilities()["matApproach"]) else "NOT_CONNECTED")
 	_report_diagnostic("GHOST_PLAYBACK", "SKIP")
 	if not bool(avatar.get("fallback", false)):
 		_report_diagnostic("AVATAR_FALLBACK", "SKIP")
 
-func _report_diagnostic(stage: String, status: String) -> void:
+func _report_diagnostic(stage: String, status: String, reason_code := "") -> void:
 	if _diagnostic_request_id.is_empty() or stage not in DIAGNOSTIC_STAGES:
 		return
 	_diagnostic_sequence += 1
-	_post_to_parent({
+	var payload := {
 		"type": "POCKETPT_GODOT_BRIDGE", "event": "DIAGNOSTIC",
 		"protocolVersion": PROTOCOL_VERSION, "diagnosticVersion": DIAGNOSTIC_VERSION,
 		"requestId": _diagnostic_request_id, "sequence": _diagnostic_sequence,
 		"stage": stage, "status": status
-	})
+	}
+	if not reason_code.is_empty(): payload["reasonCode"] = reason_code
+	_post_to_parent(payload)
 
 func _safe_sequence(value: Variant) -> bool:
 	return _exact_bounded_number(value, 1.0, float(MAX_SAFE_INTEGER)) and floor(float(value)) == float(value)

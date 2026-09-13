@@ -1,6 +1,8 @@
 class_name PocketPTLocomotionAnimator
 extends Node
 
+signal runtime_evidence_changed()
+
 const LIBRARY_PATH := "res://game/animations/player/player_locomotion_library.tres"
 const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library.tres"
 const TREE_PATH := "res://game/animations/player/player_locomotion_tree.tres"
@@ -10,7 +12,12 @@ var animation_player: AnimationPlayer
 var animation_tree: AnimationTree
 var _playback: AnimationNodeStateMachinePlayback
 var _avatar_root: Node3D
+var active_skeleton: Skeleton3D
 var action_override_active := false
+var binding_error := "AVATAR_SKELETON_NOT_BOUND"
+var _last_pose: Dictionary = {}
+var _observed_states: Dictionary = {}
+var _walk_displacement_seen := false
 
 func bind(player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> void:
 	player.locomotion_speed_changed.connect(_on_locomotion_speed_changed.bind(player.speed, player.speed * player.run_speed_multiplier))
@@ -18,6 +25,11 @@ func bind(player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> v
 
 func _on_avatar_mounted(avatar_root: Node3D) -> void:
 	_avatar_root = avatar_root
+	active_skeleton = null
+	binding_error = "AVATAR_SKELETON_NOT_BOUND"
+	_last_pose.clear()
+	_observed_states.clear()
+	_walk_displacement_seen = false
 	var skeletons := avatar_root.find_children("*", "Skeleton3D", true, false)
 	if skeletons.is_empty(): return
 	var skeleton := skeletons[0] as Skeleton3D
@@ -35,8 +47,59 @@ func _on_avatar_mounted(avatar_root: Node3D) -> void:
 	animation_tree.root_node = NodePath(".."); animation_tree.anim_player = NodePath("../PocketPTLocomotionPlayer")
 	animation_tree.tree_root = state_machine.duplicate(true); animation_tree.active = true
 	_playback = animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
+	active_skeleton = skeleton
+	binding_error = _validate_track_targets()
+	if not binding_error.is_empty():
+		animation_tree.active = false
+		runtime_evidence_changed.emit()
+		return
 	_playback.start(&"IDLE")
 	avatar_root.set_meta("pocketpt_shared_locomotion", true)
+	set_process(true)
+	runtime_evidence_changed.emit()
+
+func _process(_delta: float) -> void:
+	if active_skeleton == null or not is_instance_valid(active_skeleton) or not binding_error.is_empty(): return
+	var pose := _sample_pose()
+	if not _last_pose.is_empty() and _pose_changed(_last_pose, pose):
+		var evidence_state := &"ACTION_OVERRIDE" if action_override_active else current_state
+		if not bool(_observed_states.get(evidence_state, false)):
+			_observed_states[evidence_state] = true
+			runtime_evidence_changed.emit()
+	_last_pose = pose
+
+func diagnostic_status(state_name: StringName) -> Dictionary:
+	if not binding_error.is_empty(): return {"status": "FAIL", "reason": binding_error}
+	if state_name == &"WALK" and not _walk_displacement_seen: return {"status": "WAITING", "reason": "WALK_NOT_PLAYING"}
+	if bool(_observed_states.get(state_name, false)): return {"status": "PASS", "reason": ""}
+	return {"status": "WAITING", "reason": "%s_NOT_PLAYING" % String(state_name)}
+
+func _validate_track_targets() -> String:
+	if animation_player == null or active_skeleton == null: return "ANIMATION_PLAYER_NOT_BOUND"
+	var animation_root := animation_player.get_node_or_null(animation_player.root_node)
+	if animation_root == null: return "ANIMATION_PLAYER_NOT_BOUND"
+	for animation_name in [&"player/Idle", &"player/Walk", &"player/Run", &"action/ThrillerPart1"]:
+		var clip := animation_player.get_animation(animation_name)
+		if clip == null: return "ANIMATION_PLAYER_NOT_BOUND"
+		for track_index in clip.get_track_count():
+			var path_text := str(clip.track_get_path(track_index))
+			var target := animation_root.get_node_or_null(NodePath(path_text.get_slice(":", 0)))
+			var bone_name := path_text.get_slice(":", 1)
+			if target != active_skeleton or active_skeleton.find_bone(bone_name) < 0:
+				return "ANIMATION_TRACK_PATH_UNRESOLVED"
+	return ""
+
+func _sample_pose() -> Dictionary:
+	var pose := {}
+	for bone_name in [&"Hips", &"LeftArm", &"RightArm", &"LeftUpLeg", &"RightUpLeg"]:
+		var index := active_skeleton.find_bone(bone_name)
+		if index >= 0: pose[bone_name] = active_skeleton.get_bone_pose(index)
+	return pose
+
+func _pose_changed(before: Dictionary, after: Dictionary) -> bool:
+	for bone_name in before:
+		if after.has(bone_name) and not (before[bone_name] as Transform3D).is_equal_approx(after[bone_name]): return true
+	return false
 
 func _mount_library(source: AnimationLibrary, target_path: String) -> AnimationLibrary:
 	var mounted := AnimationLibrary.new()
@@ -71,6 +134,7 @@ func _on_locomotion_speed_changed(actual_speed: float, _source: String, walk_spe
 	if action_override_active: return
 	var next_state := &"IDLE"
 	if actual_speed > 0.05: next_state = &"RUN" if actual_speed >= lerpf(walk_speed, run_speed, 0.5) else &"WALK"
+	if next_state == &"WALK": _walk_displacement_seen = true
 	if next_state == current_state: return
 	current_state = next_state
 	if _playback != null: _playback.travel(current_state)
