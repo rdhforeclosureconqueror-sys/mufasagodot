@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export-web:
@@ -77,6 +77,17 @@ jobs:
             sha256sum build/ci-web/index.html build/ci-web/index.js build/ci-web/index.pck build/ci-web/index.wasm
           } | tee build/ci-web/BUILD_PROVENANCE.txt
           ls -lh build/ci-web
+
+      - name: Publish candidate to generated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B generated/web-candidate
+          git add -f build/ci-web
+          git commit -m "Publish Godot web candidate ${GITHUB_SHA}"
+          git push origin HEAD:generated/web-candidate --force
 
       - name: Upload Web candidate
         uses: actions/upload-artifact@v4
