@@ -116,17 +116,15 @@ replace_once(
 replace_once(
     "tests/player_locomotion_library_test.gd",
     '\tprint("PLAYER_LOCOMOTION_TEST: PASS clips=player/Idle,player/Walk,player/Run root_motion=IN_PLACE transitions=IDLE-WALK-RUN")\n',
-    '''\tvar override_released := false
-\tanimator.action_override_changed.connect(func(active: bool):
-\t\tif not active: override_released = true
-\t)
+    '''\tvar override_events: Array[bool] = []
+\tanimator.action_override_changed.connect(func(active: bool): override_events.append(active))
 \tif not animator.request_action(&"ThrillerPart1"): return _fail("ACTION_START")
 \tif not animator.action_override_active: return _fail("ACTION_OVERRIDE_NOT_ACTIVE")
 \tvar replacement_wrapper := Node3D.new(); root.add_child(replacement_wrapper)
 \tvar replacement_avatar := (load("res://assets/characters/pocketpt/source/rashad1.glb") as PackedScene).instantiate(); replacement_wrapper.add_child(replacement_avatar)
 \tanimator._on_avatar_mounted(replacement_wrapper)
 \tif animator.action_override_active: return _fail("ACTION_OVERRIDE_STUCK_AFTER_REBIND")
-\tif not override_released: return _fail("ACTION_OVERRIDE_RELEASE_SIGNAL")
+\tif false not in override_events: return _fail("ACTION_OVERRIDE_RELEASE_SIGNAL")
 \tif not animator.can_request_action(&"ThrillerPart1"): return _fail("ACTION_NOT_READY_AFTER_REBIND")
 \tprint("PLAYER_LOCOMOTION_TEST: PASS clips=player/Idle,player/Walk,player/Run root_motion=IN_PLACE transitions=IDLE-WALK-RUN")
 ''',
