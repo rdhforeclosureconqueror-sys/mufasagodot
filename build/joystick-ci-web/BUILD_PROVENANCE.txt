@@ -1,0 +1,11 @@
+godot_source_commit=b1d5a8a7c478a711f80d2fcb2550bba67fcb4104
+godot_base_commit=e863f91414ae786c7d773dd051ca71b16c1b26fe
+godot_version=4.5.1
+preset=Web
+control=MOVE_VECTOR
+generated_at=2026-09-13T22:13:15Z
+
+1df804df54f0765467d608ab4c7e424672bd269d720115593e939443b4fc40bc  build/joystick-ci-web/index.html
+8a7c7d57f7da69bb71da9de302480b87e4c7ecb467ce643665b4a288683cd18f  build/joystick-ci-web/index.js
+566943b098e2177101ef8c3e6b85e44199b5e9234f5e1c04f91bf9a51b8797ee  build/joystick-ci-web/index.pck
+6498359ba889796a0d95a2f71113ac184badc0f2d84cf28f4103c7e399d2d547  build/joystick-ci-web/index.wasm
