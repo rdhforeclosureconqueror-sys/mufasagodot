@@ -30,6 +30,11 @@ func bind(player: GymPlayerController, avatar_loader: PocketPTAvatarLoader) -> v
 	avatar_loader.avatar_mounted.connect(_on_avatar_mounted)
 
 func _on_avatar_mounted(avatar_root: Node3D) -> void:
+	_cancel_action_override_for_rebind()
+	set_process(false)
+	animation_player = null
+	animation_tree = null
+	_playback = null
 	_avatar_root = avatar_root
 	active_skeleton = null
 	binding_error = "AVATAR_SKELETON_NOT_BOUND"
@@ -134,6 +139,17 @@ func _mount_library(source: AnimationLibrary, target_path: String) -> AnimationL
 			if separator >= 0: clip.track_set_path(track_index, NodePath(target_path + old_path.substr(separator)))
 		mounted.add_animation(clip_name, clip)
 	return mounted
+
+func _cancel_action_override_for_rebind() -> void:
+	if not action_override_active:
+		return
+	if animation_player != null and is_instance_valid(animation_player):
+		animation_player.stop()
+	if animation_tree != null and is_instance_valid(animation_tree):
+		animation_tree.active = false
+	action_override_active = false
+	current_state = &"IDLE"
+	action_override_changed.emit(false)
 
 func can_request_action(semantic_id: StringName) -> bool:
 	if action_override_active or animation_player == null or animation_tree == null or not binding_error.is_empty(): return false

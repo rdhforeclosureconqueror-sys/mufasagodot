@@ -205,6 +205,7 @@ func _accept_message(message: Dictionary) -> bool:
 			return false
 		if not _player.set_remote_intent(DIRECTIONS[action] * float(intensity_value), int(valid_for), action):
 			return false
+		_clear_navigation_command()
 		_requested_motion_action = action
 		state["last_action"] = action
 		state["incoming_sequence"] = sequence
