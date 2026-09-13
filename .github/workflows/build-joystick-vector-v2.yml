@@ -1,0 +1,179 @@
+name: Build Joystick Vector Candidate V2
+
+on:
+  push:
+    branches:
+      - feat/joystick-vector-control-v2-20260913
+    paths:
+      - .github/workflows/build-joystick-vector-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact current locomotion base
+        uses: actions/checkout@v4
+        with:
+          ref: feat/joystick-vector-control-v2-20260913
+
+      - name: Add 360 joystick vector semantic
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/pocketpt/pocketpt_phone_flow.gd')
+          text = path.read_text()
+          anchor = '\tif context != str(state["context"]):\n\t\treturn false\n\tif action in DIRECTIONS:\n'
+          block = [
+              '\tif context != str(state["context"]):',
+              '\t\treturn false',
+              '\tif action == "MOVE_VECTOR":',
+              '\t\tvar valid_for = message.get("validForMs")',
+              '\t\tvar x_value = message.get("x")',
+              '\t\tvar y_value = message.get("y")',
+              '\t\tif not _exact_bounded_number(valid_for, 1.0, 300.0) or not _exact_bounded_number(x_value, -1.0, 1.0) or not _exact_bounded_number(y_value, -1.0, 1.0):',
+              '\t\t\treturn false',
+              '\t\tvar movement_vector := Vector2(float(x_value), float(y_value))',
+              '\t\tif movement_vector.length_squared() <= 0.0025:',
+              '\t\t\treturn false',
+              '\t\tmovement_vector = movement_vector.normalized()',
+              '\t\tif not _player.set_remote_intent(movement_vector, int(valid_for), action):',
+              '\t\t\treturn false',
+              '\t\t_requested_motion_action = action',
+              '\t\tstate["last_action"] = action',
+              '\t\tstate["incoming_sequence"] = sequence',
+              '\t\t_publish()',
+              '\t\treturn true',
+              '\tif action in DIRECTIONS:',
+          ]
+          if anchor not in text:
+              raise SystemExit('FIRST FAILURE: current phone flow movement insertion point not found')
+          path.write_text(text.replace(anchor, '\n'.join(block) + '\n', 1))
+
+          test_path = Path('tests/pocketpt_phone_flow_test.gd')
+          test = test_path.read_text()
+          anchor = '\tflow.expire_navigation_for_test()\n\t_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")\n\n\tvar route := _control(6, "GYM_NAVIGATION", "GO_TO_MAT")\n'
+          block = [
+              '\tflow.expire_navigation_for_test()',
+              '\t_expect(player._remote_lease_deadline_ms == 0 and player._remote_direction == Vector2.ZERO, "expired lease stops remote movement")',
+              '',
+              '\tvar joystick := _control(6, "GYM_NAVIGATION", "MOVE_VECTOR")',
+              '\tjoystick.merge({"validForMs": 300, "x": 0.6, "y": -0.8})',
+              '\t_expect(flow.ingest_message_for_test(joystick), "360 joystick movement vector accepted")',
+              '\t_expect(player._remote_direction.distance_to(Vector2(0.6, -0.8)) < 0.0001, "joystick preserves diagonal direction")',
+              '\tvar invalid_joystick := _control(7, "GYM_NAVIGATION", "MOVE_VECTOR")',
+              '\tinvalid_joystick.merge({"validForMs": 300, "x": 1.5, "y": 0.0})',
+              '\t_expect(not flow.ingest_message_for_test(invalid_joystick), "out-of-range joystick vector rejected")',
+              '\tflow.expire_navigation_for_test()',
+              '',
+              '\tvar route := _control(7, "GYM_NAVIGATION", "GO_TO_MAT")',
+          ]
+          if anchor not in test:
+              raise SystemExit('FIRST FAILURE: current phone flow test insertion point not found')
+          test = test.replace(anchor, '\n'.join(block) + '\n', 1)
+          test = test.replace('var stop := _control(7, "CAMERA_SETUP", "STOP")', 'var stop := _control(8, "CAMERA_SETUP", "STOP")', 1)
+          test = test.replace('var wrong_source_scope := _control(8, "GYM_NAVIGATION", "MOVE_LEFT")', 'var wrong_source_scope := _control(9, "GYM_NAVIGATION", "MOVE_LEFT")', 1)
+          test = test.replace('var push_up := _control(8, "GYM_NAVIGATION", "PUSH_UP_START")', 'var push_up := _control(9, "GYM_NAVIGATION", "PUSH_UP_START")', 1)
+          test_path.write_text(test)
+          PY
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Import project resources
+        shell: bash
+        run: |
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Run joystick and locomotion regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tests/pocketpt_phone_flow_test.gd
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://tests/player_locomotion_library_test.gd
+
+      - name: Commit validated joystick source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/pocketpt/pocketpt_phone_flow.gd tests/pocketpt_phone_flow_test.gd
+          git diff --cached --check
+          git commit -m "Add 360 joystick movement vector [skip ci]"
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:feat/joystick-vector-control-v2-20260913
+
+      - name: Install matching Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/godot-templates/templates/. "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/web_release.zip"
+
+      - name: Export exact joystick Web candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/joystick-ci-web
+          mkdir -p build/joystick-ci-web
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/joystick-ci-web/index.html
+          for file in index.html index.js index.pck index.wasm; do test -s "build/joystick-ci-web/$file"; done
+
+      - name: Record exact joystick candidate provenance
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "godot_source_commit=${SOURCE_SHA}"
+            echo "godot_base_commit=e863f91414ae786c7d773dd051ca71b16c1b26fe"
+            echo "godot_version=4.5.1"
+            echo "preset=Web"
+            echo "control=MOVE_VECTOR"
+            echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum build/joystick-ci-web/index.html build/joystick-ci-web/index.js build/joystick-ci-web/index.pck build/joystick-ci-web/index.wasm
+          } | tee build/joystick-ci-web/BUILD_PROVENANCE.txt
+
+      - name: Publish exact joystick candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B generated/joystick-web-candidate
+          git add -f build/joystick-ci-web
+          git commit -m "Publish joystick Web candidate ${{ steps.source.outputs.source_sha }}"
+          git push origin HEAD:generated/joystick-web-candidate --force
+
+      - name: Upload joystick candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-joystick-web-${{ steps.source.outputs.source_sha }}
+          path: build/joystick-ci-web/
+          if-no-files-found: error
+          retention-days: 14
