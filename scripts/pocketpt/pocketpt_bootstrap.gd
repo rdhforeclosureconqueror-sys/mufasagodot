@@ -14,6 +14,7 @@ var locomotion_animator: Node
 var remote_players: Node3D
 var remote_avatar_loader: Node
 var lobby_client: Node
+var practice_game: PushUpMazePractice
 
 func _ready() -> void:
 	name = "PocketPTBootstrap"
@@ -30,6 +31,10 @@ func _ready() -> void:
 	if current_scene == null:
 		push_error("PocketPT bootstrap requires an active main scene")
 		return
+	practice_game = current_scene.get_node_or_null("PushUpMazePractice") as PushUpMazePractice
+	if practice_game != null:
+		debug_ui.bind_practice_game(practice_game)
+
 	var visual_mount := current_scene.get_node_or_null("player/avataranchor") as Node3D
 	var fallback_visual := current_scene.get_node_or_null("player/Sketchfab_Scene") as Node3D
 	avatar_loader = AvatarLoaderScript.new()

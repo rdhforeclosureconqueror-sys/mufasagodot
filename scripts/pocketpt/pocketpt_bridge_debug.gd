@@ -6,6 +6,7 @@ var avatar_loader: Node
 var phone_flow: Node
 var player: GymPlayerController
 var lobby_client: PocketPTLobbyClient
+var practice_game: PushUpMazePractice
 var output: TextEdit
 
 func _ready() -> void:
@@ -13,7 +14,7 @@ func _ready() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "PocketPTConsolidatedDiagnostics"
 	panel.position = Vector2(16, 16)
-	panel.custom_minimum_size = Vector2(470, 720)
+	panel.custom_minimum_size = Vector2(470, 820)
 	add_child(panel)
 	# Browser builds publish diagnostics to the parent PocketPT page; keep the in-world panel out of the player's view.
 	panel.visible = not OS.has_feature("web")
@@ -37,7 +38,7 @@ func _ready() -> void:
 	output = TextEdit.new()
 	output.name = "CopyablePipelineDiagnostics"
 	output.editable = false
-	output.custom_minimum_size = Vector2(440, 645)
+	output.custom_minimum_size = Vector2(440, 745)
 	output.add_theme_font_size_override("font_size", 13)
 	output.add_theme_color_override("font_color", Color(0.82, 0.88, 0.95))
 	stack.add_child(output)
@@ -55,6 +56,9 @@ func bind_runtime(flow: Node, controller: GymPlayerController) -> void:
 func bind_multiplayer(value: PocketPTLobbyClient) -> void:
 	lobby_client = value
 
+func bind_practice_game(value: PushUpMazePractice) -> void:
+	practice_game = value
+
 func _process(_delta: float) -> void:
 	if output == null:
 		return
@@ -63,6 +67,7 @@ func _process(_delta: float) -> void:
 	var flow_state: Dictionary = phone_flow.state if phone_flow != null else {}
 	var avatar: Dictionary = avatar_loader.avatar_state if avatar_loader != null else {}
 	var multiplayer: Dictionary = lobby_client.diagnostic_snapshot() if lobby_client != null else {}
+	var practice: Dictionary = practice_game.diagnostic_snapshot() if practice_game != null else {}
 	var floor_found := not get_tree().get_nodes_in_group("pocketpt_floor_collision").is_empty()
 	var nav_found := not get_tree().get_nodes_in_group("pocketpt_navigation_region").is_empty()
 	var mat_found := not get_tree().get_nodes_in_group("pocketpt_mat_target").is_empty()
@@ -78,6 +83,7 @@ func _process(_delta: float) -> void:
 	elif not mufasa_found: first_failure = "MUFASA ASSET"
 	elif web and str(connection.get("status", "")) == "ERROR": first_failure = "POCKETPT PAGE / IFRAME HANDSHAKE"
 	elif web and lobby_client != null and str(multiplayer.get("firstFailure", "NONE")) != "NONE": first_failure = str(multiplayer.get("firstFailure", "NONE"))
+	elif practice_game != null and str(practice.get("firstFailure", "NONE")) != "NONE": first_failure = str(practice.get("firstFailure", "NONE"))
 	var animation_name := "NONE"
 	if phone_flow != null and phone_flow._locomotion_animator != null:
 		animation_name = str(phone_flow._locomotion_animator.runtime_snapshot.get("currentClip", "NONE"))
@@ -114,6 +120,17 @@ ACTIVE_LOCOMOTION: %s
 ANIMATION_PLAYING: %s
 GROUND_STATE: %s
 
+PUSH-UP MAZE READY: %s
+PUSH-UP MAZE STATUS: %s
+MAZE CONTROL MODE: %s
+BODY TRACKING: %s
+MAZE TIME REMAINING: %s
+MAZE CHECKPOINT: %s/%s
+MAZE WALL COUNT: %s
+MAZE PUSH-UP HOOK COUNT: %s
+MAZE LAST EVENT: %s
+MAZE FIRST FAILURE: %s
+
 MULTIPLAYER TRANSPORT: %s
 WS URL: %s
 CONNECTION STATE: %s
@@ -141,6 +158,10 @@ FIRST FAILURE: %s""" % [
 		str(flow_state.get("last_action", "NONE")), str(player._remote_direction if player != null else Vector2.ZERO),
 		str(player.velocity if player != null else Vector3.ZERO), player._last_source if player != null else "NONE",
 		animation_name, player.grounded_state() if player != null else "UNKNOWN",
+		"YES" if bool(practice.get("mazeReady", false)) else "NO", str(practice.get("status", "NOT_BOUND")),
+		str(practice.get("controlMode", "NOT_BOUND")), str(practice.get("bodyTracking", "NOT_BOUND")),
+		str(practice.get("timeRemaining", -1.0)), str(practice.get("checkpoint", 0)), str(practice.get("checkpointTotal", 0)),
+		str(practice.get("wallCount", 0)), str(practice.get("pushups", 0)), str(practice.get("lastEvent", "NONE")), str(practice.get("firstFailure", "NONE")),
 		str(multiplayer.get("transport", "NOT_BOUND")), str(multiplayer.get("wsUrl", "")), str(multiplayer.get("connectionState", "NOT_BOUND")),
 		str(multiplayer.get("roomId", "")), str(multiplayer.get("selfPresenceId", "")), str(multiplayer.get("localMemberId", "")),
 		str(multiplayer.get("roomPlayerCount", 0)), str(multiplayer.get("remotePlayerCount", 0)), str(multiplayer.get("remoteAvatarsLoaded", 0)),

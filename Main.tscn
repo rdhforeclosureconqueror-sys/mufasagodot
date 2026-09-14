@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://dgmktgot003jk"]
+[gd_scene load_steps=10 format=3 uid="uid://dgmktgot003jk"]
 
 [ext_resource type="Script" uid="uid://dltqptv0p44kt" path="res://main.gd" id="1_uu6xs"]
 [ext_resource type="Script" uid="uid://bgln8ajer1o26" path="res://player.gd" id="2_r0du0"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://j5jbm3nl1ot3" path="res://squat_test.gd" id="5_3dxm6"]
 [ext_resource type="Script" uid="uid://cvcegqpad4cps" path="res://scripts/pocketpt/pocketpt_bootstrap.gd" id="6_3dxm6"]
 [ext_resource type="PackedScene" path="res://scenes/characters/mufasa_gym.tscn" id="7_mufasa"]
+[ext_resource type="Script" path="res://scripts/games/pushup_maze_practice.gd" id="8_maze"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rxg2q"]
 height = 1.5
@@ -52,6 +53,9 @@ rotation_degrees = Vector3(0, 150, 0)
 
 [node name="SquatTest" type="Node" parent="."]
 script = ExtResource("5_3dxm6")
+
+[node name="PushUpMazePractice" type="Node3D" parent="."]
+script = ExtResource("8_maze")
 
 [node name="PocketPTBootstrap" type="Node" parent="."]
 script = ExtResource("6_3dxm6")
