@@ -41,10 +41,16 @@ jobs:
           "$GODOT_BIN" --version
 
       - name: Import project resources and class cache
-        run: "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
 
       - name: Generate canonical local-rest profile
-        run: "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tools/generate_canonical_rest_profile.gd
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tools/generate_canonical_rest_profile.gd
 
       - name: Parse repaired runtimes
         shell: bash
