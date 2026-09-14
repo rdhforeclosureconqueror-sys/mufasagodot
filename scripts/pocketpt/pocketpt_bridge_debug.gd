@@ -14,6 +14,8 @@ func _ready() -> void:
 	panel.position = Vector2(16, 16)
 	panel.custom_minimum_size = Vector2(470, 610)
 	add_child(panel)
+	# Browser builds publish diagnostics to the parent PocketPT page; keep the in-world panel out of the player's view.
+	panel.visible = not OS.has_feature("web")
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.018, 0.022, 0.03, 0.94)
 	style.border_color = Color(0.92, 0.06, 0.08)

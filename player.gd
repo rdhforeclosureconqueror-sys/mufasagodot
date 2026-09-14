@@ -96,7 +96,9 @@ func _face_visual_direction(world_direction: Vector3, delta: float) -> void:
 	if local_direction.length_squared() <= 0.0001:
 		return
 	local_direction = local_direction.normalized()
-	var target_yaw := atan2(-local_direction.x, -local_direction.z)
+	# The imported personalized avatar's visual forward axis is opposite Godot's -Z controller forward.
+	# Apply the model-facing half turn only to the visual nodes; CharacterBody/NavAgent motion is unchanged.
+	var target_yaw := wrapf(atan2(-local_direction.x, -local_direction.z) + PI, -PI, PI)
 	var weight := clampf(visual_turn_speed * delta, 0.0, 1.0)
 	if avatar_anchor != null and is_instance_valid(avatar_anchor):
 		avatar_anchor.rotation.y = lerp_angle(avatar_anchor.rotation.y, target_yaw, weight)
