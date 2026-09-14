@@ -27,9 +27,16 @@ var _mocap_last_reason := "MOCAP_NOT_ACQUIRED"
 
 func _process(delta: float) -> void:
 	super._process(delta)
-	if _mocap_active and _mocap_last_frame_ticks > 0 and Time.get_ticks_msec() - _mocap_last_frame_ticks > MOCAP_TIMEOUT_MS:
-		_release_live_mocap("MOCAP_FRAME_TIMEOUT")
-		_report_mocap_diagnostic("GODOT_LIVE_MOCAP", "WAITING", "MOCAP_FRAME_TIMEOUT")
+	_check_mocap_timeout(Time.get_ticks_msec())
+
+func _check_mocap_timeout(now_ticks: int) -> bool:
+	if not _mocap_active or _mocap_last_frame_ticks <= 0:
+		return false
+	if now_ticks - _mocap_last_frame_ticks <= MOCAP_TIMEOUT_MS:
+		return false
+	_release_live_mocap("MOCAP_FRAME_TIMEOUT")
+	_report_mocap_diagnostic("GODOT_LIVE_MOCAP", "WAITING", "MOCAP_FRAME_TIMEOUT")
+	return true
 
 func capabilities() -> Dictionary:
 	var result := super.capabilities()
