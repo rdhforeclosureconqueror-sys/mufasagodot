@@ -457,7 +457,7 @@ func _send_local_state() -> bool:
 	const socket = window.__pocketptGodotLobbySocket;
 	if (!socket || socket.readyState !== WebSocket.OPEN) return false;
 	try {
-		socket.send(JSON.parse(%s));
+		socket.send(%s);
 		return true;
 	} catch (_error) {
 		return false;
