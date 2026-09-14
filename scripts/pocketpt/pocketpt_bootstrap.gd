@@ -3,12 +3,17 @@ extends Node
 const AvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_avatar_loader.gd")
 const PhoneFlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow.gd")
 const LocomotionAnimatorScript = preload("res://scripts/pocketpt/pocketpt_locomotion_animator.gd")
+const RemoteAvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_remote_avatar_loader.gd")
+const LobbyClientScript = preload("res://scripts/pocketpt/pocketpt_lobby_client.gd")
 
 var client: PocketPTGameClient
 var debug_ui: PocketPTBridgeDebug
 var avatar_loader: Node
 var phone_flow: Node
 var locomotion_animator: Node
+var remote_players: Node3D
+var remote_avatar_loader: Node
+var lobby_client: Node
 
 func _ready() -> void:
 	name = "PocketPTBootstrap"
@@ -32,6 +37,16 @@ func _ready() -> void:
 	add_child(avatar_loader)
 	avatar_loader.bind(client, visual_mount, fallback_visual)
 	debug_ui.bind_avatar_loader(avatar_loader)
+
+	remote_players = current_scene.get_node_or_null("RemotePlayers") as Node3D
+	if remote_players == null:
+		remote_players = Node3D.new()
+		remote_players.name = "RemotePlayers"
+		current_scene.add_child(remote_players)
+	remote_avatar_loader = RemoteAvatarLoaderScript.new()
+	remote_avatar_loader.name = "PocketPTRemoteAvatarLoader"
+	add_child(remote_avatar_loader)
+
 	var player := current_scene.get_node_or_null("player") as GymPlayerController
 	if player != null:
 		locomotion_animator = LocomotionAnimatorScript.new()
@@ -43,5 +58,11 @@ func _ready() -> void:
 		add_child(phone_flow)
 		phone_flow.bind(client, player, avatar_loader, locomotion_animator)
 		debug_ui.bind_runtime(phone_flow, player)
+
+		lobby_client = LobbyClientScript.new()
+		lobby_client.name = "PocketPTLobbyClient"
+		add_child(lobby_client)
+		lobby_client.bind(client, player, locomotion_animator, remote_players, remote_avatar_loader)
+		debug_ui.bind_multiplayer(lobby_client)
 
 	client.call_deferred("initialize")
