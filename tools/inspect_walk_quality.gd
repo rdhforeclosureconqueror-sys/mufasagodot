@@ -9,9 +9,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var library := load(LIBRARY_PATH) as AnimationLibrary
-	if library == null or not library.has_animation(&"Walk"): return _fail("LIBRARY_WALK_MISSING")
-	var walk := library.get_animation(&"Walk")
-	_print_clip("LIBRARY_WALK", walk)
+	if library == null or not library.has_animation(&"Walk") or not library.has_animation(&"Run"): return _fail("LIBRARY_LOCOMOTION_MISSING")
+	_print_clip("LIBRARY_WALK", library.get_animation(&"Walk"))
+	_print_clip("LIBRARY_RUN", library.get_animation(&"Run"))
 	var source_scene := load(SOURCE_PATH) as PackedScene
 	if source_scene == null: return _fail("SOURCE_SCENE_MISSING")
 	var root_node := source_scene.instantiate()
