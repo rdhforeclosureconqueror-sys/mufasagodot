@@ -30,13 +30,22 @@ jobs:
           python tools/apply_physical_acceptance_round2.py
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/pocketpt/pocketpt_lobby_client.gd')
-          text = path.read_text(encoding='utf-8')
+
+          lobby = Path('scripts/pocketpt/pocketpt_lobby_client.gd')
+          text = lobby.read_text(encoding='utf-8')
           old = 'var ok := event.get("ok") == true'
           new = 'var ok: bool = event.get("ok") == true'
           if old not in text:
               raise SystemExit('expected bool inference line missing')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          lobby.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/pocketpt_multiplayer_test.gd')
+          text = test.read_text(encoding='utf-8')
+          old = '''func _test_snapshot_state_leave_reconnect_shape() -> void:\n\tvar self_player :='''
+          new = '''func _test_snapshot_state_leave_reconnect_shape() -> void:\n\t# Prior transport-failure coverage intentionally records FIRST FAILURE. Clear\n\t# it so stale-sequence assertions test only the receive path.\n\tlobby.multiplayer_state["firstFailure"] = "NONE"\n\tlobby.multiplayer_state["lastError"] = ""\n\tvar self_player :='''
+          if old not in text:
+              raise SystemExit('expected multiplayer isolation insertion point missing')
+          test.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
       - name: Download Godot 4.5.1
