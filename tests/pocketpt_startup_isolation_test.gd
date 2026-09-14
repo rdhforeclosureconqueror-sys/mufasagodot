@@ -60,6 +60,16 @@ func _run() -> void:
 	_expect(not main_scene.contains("[node name=\"PushUpMazeDiagnosticBridge\""), "maze diagnostics must not be a static Main.tscn startup node")
 	_expect(main_scene.contains("[node name=\"PocketPTBootstrap\""), "PocketPT bootstrap remains in the startup scene")
 
+	var export_presets := FileAccess.get_file_as_string("res://export_presets.cfg")
+	_expect(
+		export_presets.contains("\"res://scripts/games/pushup_maze_practice.gd\""),
+		"Web export must include the dynamically loaded maze practice script"
+	)
+	_expect(
+		export_presets.contains("\"res://scripts/games/pushup_maze_diagnostic_bridge.gd\""),
+		"Web export must include the dynamically loaded maze diagnostic bridge"
+	)
+
 	bootstrap.free()
 	if failures.is_empty():
 		print("POCKETPT_STARTUP_ISOLATION_TEST: PASS")
