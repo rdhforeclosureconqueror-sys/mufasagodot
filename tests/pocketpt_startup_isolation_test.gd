@@ -77,14 +77,14 @@ func _run() -> void:
 	_expect(main_source.contains("MAIN_SCENE_READY"), "main scene must report before PocketPT bootstrap so pre-bootstrap failures are visible")
 
 	var export_presets := FileAccess.get_file_as_string("res://export_presets.cfg")
-	_expect(
-		export_presets.contains("\"res://scripts/games/pushup_maze_practice.gd\""),
-		"Web export must include the dynamically loaded maze practice script"
-	)
-	_expect(
-		export_presets.contains("\"res://scripts/games/pushup_maze_diagnostic_bridge.gd\""),
-		"Web export must include the dynamically loaded maze diagnostic bridge"
-	)
+	for deferred_path in [
+		"res://scripts/pocketpt/pocketpt_remote_avatar_loader.gd",
+		"res://scripts/pocketpt/pocketpt_lobby_client.gd",
+		"res://scripts/pocketpt/pocketpt_remote_player.gd",
+		"res://scripts/games/pushup_maze_practice.gd",
+		"res://scripts/games/pushup_maze_diagnostic_bridge.gd"
+	]:
+		_expect(export_presets.contains("\"%s\"" % deferred_path), "Web export must include deferred runtime: %s" % deferred_path)
 
 	bootstrap.free()
 	if failures.is_empty():
