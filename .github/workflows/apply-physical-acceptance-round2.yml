@@ -45,7 +45,12 @@ jobs:
           new = '''func _test_snapshot_state_leave_reconnect_shape() -> void:\n\t# Prior transport-failure coverage intentionally records FIRST FAILURE. Clear\n\t# it so stale-sequence assertions test only the receive path.\n\tlobby.multiplayer_state["firstFailure"] = "NONE"\n\tlobby.multiplayer_state["lastError"] = ""\n\tvar self_player :='''
           if old not in text:
               raise SystemExit('expected multiplayer isolation insertion point missing')
-          test.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text = text.replace(old, new, 1)
+          old_assert = '''\t_expect(str(lobby.diagnostic_snapshot().get("firstFailure", "NONE")) == "NONE", "stale JSON sequence does not become FIRST FAILURE")'''
+          new_assert = '''\tvar stale_failure := str(lobby.diagnostic_snapshot().get("firstFailure", "NONE"))\n\t_expect(stale_failure == "NONE", "stale JSON sequence does not become FIRST FAILURE: %s" % stale_failure)'''
+          if old_assert not in text:
+              raise SystemExit('expected stale assertion missing')
+          test.write_text(text.replace(old_assert, new_assert, 1), encoding='utf-8')
           PY
 
       - name: Download Godot 4.5.1
