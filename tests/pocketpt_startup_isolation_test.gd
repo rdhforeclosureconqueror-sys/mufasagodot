@@ -73,6 +73,11 @@ func _run() -> void:
 	_expect(bootstrap_source.contains("INNER_BOOTSTRAP_STARTED"), "pre-READY startup telemetry must expose inner bootstrap start")
 	_expect(bootstrap_source.contains("READY_SENT"), "pre-READY startup telemetry must expose READY send")
 
+	var debug_source := FileAccess.get_file_as_string("res://scripts/pocketpt/pocketpt_bridge_debug.gd")
+	_expect(not debug_source.contains(": PocketPTLobbyClient"), "critical debug script must not hard-type the optional lobby client")
+	_expect(debug_source.contains("var lobby_client: Node"), "debug bridge must hold multiplayer through a generic optional Node reference")
+	_expect(debug_source.contains("has_method(\"diagnostic_snapshot\")"), "debug bridge must guard optional multiplayer diagnostics dynamically")
+
 	var main_source := FileAccess.get_file_as_string("res://main.gd")
 	_expect(main_source.contains("MAIN_SCENE_READY"), "main scene must report before PocketPT bootstrap so pre-bootstrap failures are visible")
 
