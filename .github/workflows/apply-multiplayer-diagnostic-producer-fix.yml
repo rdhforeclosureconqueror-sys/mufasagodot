@@ -1,0 +1,38 @@
+name: Apply Multiplayer Diagnostic Producer Fix
+
+on:
+  push:
+    branches:
+      - fix/multiplayer-diagnostic-producer-20260914
+    paths:
+      - .github/workflows/apply-multiplayer-diagnostic-producer-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/multiplayer-diagnostic-producer-20260914
+      - name: Apply multiplayer diagnostic producer patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/apply_multiplayer_diagnostic_producer_fix.py
+          git diff --check
+          grep -F 'MULTIPLAYER_DIAGNOSTIC' scripts/pocketpt/pocketpt_lobby_client.gd
+          grep -F 'pocketpt_multiplayer_diagnostic_payload_test.gd' .github/workflows/multiplayer-ci.yml
+      - name: Commit integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/pocketpt/pocketpt_lobby_client.gd .github/workflows/multiplayer-ci.yml
+          git commit -m "Publish multiplayer diagnostics to Arena parent"
+          git push origin HEAD:fix/multiplayer-diagnostic-producer-20260914
