@@ -1,11 +1,13 @@
 extends SceneTree
 
 const RestRetarget = preload("res://scripts/pocketpt/pocketpt_animation_rest_retarget.gd")
+const SOURCE_AVATAR_PATH := "res://assets/characters/pocketpt/source/rashad1.glb"
 
 var failures: Array[String] = []
 
 func _initialize() -> void:
 	_test_profile()
+	_test_profile_matches_actual_source_local_rest()
 	_test_rotation_conversion()
 	_test_library_mount()
 	if failures.is_empty():
@@ -20,9 +22,30 @@ func _test_profile() -> void:
 	var status := RestRetarget.profile_status()
 	_expect(bool(status.get("ok", false)), "canonical rest profile loads")
 	_expect(int(status.get("boneCount", 0)) >= 50, "canonical rest profile contains full humanoid skeleton")
+	_expect(str(status.get("basisSpace", "")) == "BONE_LOCAL_REST", "canonical profile explicitly records bone-local rest space")
+
+func _test_profile_matches_actual_source_local_rest() -> void:
+	var packed := load(SOURCE_AVATAR_PATH) as PackedScene
+	_expect(packed != null, "actual Rashad source avatar fixture loads")
+	if packed == null:
+		return
+	var instance := packed.instantiate() as Node3D
+	root.add_child(instance)
+	var skeletons := instance.find_children("*", "Skeleton3D", true, false)
+	_expect(not skeletons.is_empty(), "actual Rashad source skeleton exists")
+	if skeletons.is_empty():
+		instance.queue_free()
+		return
+	var skeleton := skeletons[0] as Skeleton3D
 	for bone_name in ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"]:
-		var q := RestRetarget.canonical_rest_for_bone(bone_name)
-		_expect(absf(q.dot(Quaternion(0.0, 0.0, 0.0, 1.0))) < 0.999, "%s has explicit non-identity canonical rest basis" % bone_name)
+		var index := skeleton.find_bone(bone_name)
+		_expect(index >= 0, "%s exists in source skeleton" % bone_name)
+		if index < 0:
+			continue
+		var actual_local := skeleton.get_bone_rest(index).basis.get_rotation_quaternion().normalized()
+		var profiled_local := RestRetarget.canonical_rest_for_bone(bone_name)
+		_expect(_same_rotation(actual_local, profiled_local), "%s profile stores LOCAL rest, not global rest" % bone_name)
+	instance.queue_free()
 
 func _test_rotation_conversion() -> void:
 	var source_rest := RestRetarget.canonical_rest_for_bone("LeftForeArm")
@@ -31,7 +54,12 @@ func _test_rotation_conversion() -> void:
 	_expect(_same_rotation(unchanged, delta), "matching rest bases preserve rotation delta")
 	var target_rest := (Quaternion(Vector3(0.0, 1.0, 0.0), 0.72) * source_rest).normalized()
 	var converted := RestRetarget.retarget_rotation_delta(delta, source_rest, target_rest)
-	_expect(not _same_rotation(converted, delta), "different rest bases convert rotation axis")
+	_expect(not _same_rotation(converted, delta), "different local rest bases convert rotation axis")
+	# Anatomical flexion lives in the parent-bone coordinate frame. The converted
+	# delta must preserve that parent-space rotation axis across different bone rolls.
+	var source_parent_space := source_rest * delta * source_rest.inverse()
+	var target_parent_space := target_rest * converted * target_rest.inverse()
+	_expect(_same_rotation(source_parent_space, target_parent_space), "retarget preserves elbow flexion plane in parent space")
 	var round_trip := RestRetarget.retarget_rotation_delta(converted, target_rest, source_rest)
 	_expect(_same_rotation(round_trip, delta), "rest-space conversion is reversible")
 

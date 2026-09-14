@@ -36,14 +36,17 @@ static func mount_library(source: AnimationLibrary, target_path: String, target_
 			var source_record = bones.get(bone_name)
 			if not source_record is Dictionary:
 				return _failure("SOURCE_REST_BONE_MISSING:%s" % bone_name)
-			var source_values = source_record.get("quaternion")
+			var source_values = source_record.get("localQuaternion")
 			if not source_values is Array or source_values.size() != 4:
-				return _failure("SOURCE_REST_QUATERNION_INVALID:%s" % bone_name)
+				return _failure("SOURCE_LOCAL_REST_QUATERNION_INVALID:%s" % bone_name)
 			var target_index := target_skeleton.find_bone(bone_name)
 			if target_index < 0:
 				return _failure("TARGET_REST_BONE_MISSING:%s" % bone_name)
 			var source_rest := Quaternion(float(source_values[0]), float(source_values[1]), float(source_values[2]), float(source_values[3])).normalized()
-			var target_rest := target_skeleton.get_bone_global_rest(target_index).basis.get_rotation_quaternion().normalized()
+			# Animation TYPE_ROTATION_3D keys are bone-pose (bone-local/rest-relative)
+			# rotations. Comparing them against global rest folds parent orientation
+			# into the conversion and physically twists elbows around the wrong axis.
+			var target_rest := target_skeleton.get_bone_rest(target_index).basis.get_rotation_quaternion().normalized()
 			var key_count := clip.track_get_key_count(track_index)
 			for key_index in key_count:
 				var value = clip.track_get_key_value(track_index, key_index)
@@ -61,9 +64,9 @@ static func mount_library(source: AnimationLibrary, target_path: String, target_
 		"adjustedRotationKeys": adjusted_keys,
 	}
 
-static func retarget_rotation_delta(delta: Quaternion, source_global_rest: Quaternion, target_global_rest: Quaternion) -> Quaternion:
-	var source_rest := source_global_rest.normalized()
-	var target_rest := target_global_rest.normalized()
+static func retarget_rotation_delta(delta: Quaternion, source_local_rest: Quaternion, target_local_rest: Quaternion) -> Quaternion:
+	var source_rest := source_local_rest.normalized()
+	var target_rest := target_local_rest.normalized()
 	# Equivalent to the repo's Blender target-native bake:
 	# T^-1 * S * delta * S^-1 * T
 	return (target_rest.inverse() * source_rest * delta.normalized() * source_rest.inverse() * target_rest).normalized()
@@ -78,7 +81,7 @@ static func canonical_rest_for_bone(bone_name: String) -> Quaternion:
 	var record = bones.get(bone_name)
 	if not record is Dictionary:
 		return Quaternion(0.0, 0.0, 0.0, 1.0)
-	var values = record.get("quaternion")
+	var values = record.get("localQuaternion")
 	if not values is Array or values.size() != 4:
 		return Quaternion(0.0, 0.0, 0.0, 1.0)
 	return Quaternion(float(values[0]), float(values[1]), float(values[2]), float(values[3])).normalized()
@@ -89,6 +92,7 @@ static func profile_status() -> Dictionary:
 		"ok": not profile.is_empty(),
 		"error": _profile_error,
 		"boneCount": int(profile.get("boneCount", 0)) if not profile.is_empty() else 0,
+		"basisSpace": str(profile.get("basisSpace", "")) if not profile.is_empty() else "",
 	}
 
 static func _load_profile() -> Dictionary:
@@ -106,7 +110,7 @@ static func _load_profile() -> Dictionary:
 	if not parsed is Dictionary:
 		_profile_error = "REST_PROFILE_INVALID_JSON"
 		return {}
-	if int(parsed.get("version", 0)) != 1:
+	if int(parsed.get("version", 0)) != 2 or str(parsed.get("basisSpace", "")) != "BONE_LOCAL_REST":
 		_profile_error = "REST_PROFILE_VERSION_UNSUPPORTED"
 		return {}
 	_profile_cache = parsed
