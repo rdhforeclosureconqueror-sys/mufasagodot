@@ -1,0 +1,80 @@
+name: Godot Multiplayer Gate
+
+on:
+  pull_request:
+    paths:
+      - "scripts/pocketpt/pocketpt_lobby_client.gd"
+      - "scripts/pocketpt/pocketpt_remote_player.gd"
+      - "scripts/pocketpt/pocketpt_remote_avatar_loader.gd"
+      - "scripts/pocketpt/pocketpt_bootstrap.gd"
+      - "scripts/pocketpt/pocketpt_bridge_debug.gd"
+      - "tests/pocketpt_multiplayer_test.gd"
+      - ".github/workflows/multiplayer-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  multiplayer-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Godot project
+        uses: actions/checkout@v4
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -o /tmp/godot.zip \
+            https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Parse remote avatar loader
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_remote_avatar_loader.gd
+
+      - name: Parse remote player
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_remote_player.gd
+
+      - name: Import project resources and class cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Parse lobby client with project classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_lobby_client.gd
+
+      - name: Run multiplayer regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pocketpt_multiplayer_test.gd
+
+      - name: Protect phone control regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pocketpt_phone_flow_test.gd
+
+      - name: Protect visual-facing regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/player_visual_facing_test.gd
