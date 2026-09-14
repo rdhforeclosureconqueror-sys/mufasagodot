@@ -1,0 +1,38 @@
+name: Apply Avatar Rest Retarget Fix
+
+on:
+  push:
+    branches:
+      - fix/avatar-arm-rest-retarget-20260914
+    paths:
+      - .github/workflows/apply-avatar-rest-retarget-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/avatar-arm-rest-retarget-20260914
+      - name: Apply runtime rest-retarget integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/apply_avatar_rest_retarget_fix.py
+          git diff --check
+          grep -F 'RestRetarget.mount_library' scripts/pocketpt/pocketpt_locomotion_animator.gd
+          grep -F 'RestRetarget.mount_library' scripts/pocketpt/pocketpt_remote_player.gd
+          grep -F 'canonical_avatar_rest_profile.json' export_presets.cfg
+      - name: Commit integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/pocketpt/pocketpt_locomotion_animator.gd scripts/pocketpt/pocketpt_remote_player.gd export_presets.cfg
+          git commit -m "Retarget personal-avatar rotations through rest space"
+          git push origin HEAD:fix/avatar-arm-rest-retarget-20260914
