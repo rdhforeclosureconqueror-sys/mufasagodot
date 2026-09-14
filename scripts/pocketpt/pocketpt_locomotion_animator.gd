@@ -7,6 +7,7 @@ signal action_override_changed(active: bool)
 const LIBRARY_PATH := "res://game/animations/player/player_locomotion_library.tres"
 const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library.tres"
 const TREE_PATH := "res://game/animations/player/player_locomotion_tree.tres"
+const RestRetarget = preload("res://scripts/pocketpt/pocketpt_animation_rest_retarget.gd")
 
 var current_state := &"IDLE"
 var animation_player: AnimationPlayer
@@ -19,6 +20,8 @@ var binding_error := "AVATAR_SKELETON_NOT_BOUND"
 var _last_pose: Dictionary = {}
 var _observed_states: Dictionary = {}
 var _walk_displacement_seen := false
+var _rest_retarget_tracks := 0
+var _rest_retarget_keys := 0
 var runtime_snapshot: Dictionary = {
 	"movementMode": "WALK", "actualHorizontalDisplacement": 0.0,
 	"requestedLocomotionState": "IDLE", "actualAnimationTreeState": "IDLE",
@@ -41,6 +44,8 @@ func _on_avatar_mounted(avatar_root: Node3D) -> void:
 	_last_pose.clear()
 	_observed_states.clear()
 	_walk_displacement_seen = false
+	_rest_retarget_tracks = 0
+	_rest_retarget_keys = 0
 	var skeletons := avatar_root.find_children("*", "Skeleton3D", true, false)
 	if skeletons.is_empty(): return
 	var skeleton := skeletons[0] as Skeleton3D
@@ -49,8 +54,23 @@ func _on_avatar_mounted(avatar_root: Node3D) -> void:
 	var state_machine := load(TREE_PATH) as AnimationNodeStateMachine
 	if source_library == null or source_actions == null or state_machine == null: return
 	var target_path := str(avatar_root.get_path_to(skeleton))
-	var mounted_library := _mount_library(source_library, target_path)
-	var mounted_actions := _mount_library(source_actions, target_path)
+	var locomotion_result := RestRetarget.mount_library(source_library, target_path, skeleton)
+	var action_result := RestRetarget.mount_library(source_actions, target_path, skeleton)
+	var retarget_error := str(locomotion_result.get("error", ""))
+	if retarget_error.is_empty():
+		retarget_error = str(action_result.get("error", ""))
+	if not retarget_error.is_empty():
+		binding_error = "ANIMATION_REST_RETARGET_FAILED:%s" % retarget_error
+		runtime_evidence_changed.emit()
+		return
+	var mounted_library = locomotion_result.get("library") as AnimationLibrary
+	var mounted_actions = action_result.get("library") as AnimationLibrary
+	if mounted_library == null or mounted_actions == null:
+		binding_error = "ANIMATION_REST_RETARGET_FAILED:LIBRARY_MISSING"
+		runtime_evidence_changed.emit()
+		return
+	_rest_retarget_tracks = int(locomotion_result.get("adjustedRotationTracks", 0)) + int(action_result.get("adjustedRotationTracks", 0))
+	_rest_retarget_keys = int(locomotion_result.get("adjustedRotationKeys", 0)) + int(action_result.get("adjustedRotationKeys", 0))
 	animation_player = AnimationPlayer.new(); animation_player.name = "PocketPTLocomotionPlayer"; avatar_root.add_child(animation_player)
 	animation_player.root_node = NodePath(".."); animation_player.add_animation_library(&"player", mounted_library); animation_player.add_animation_library(&"action", mounted_actions)
 	animation_player.animation_finished.connect(_on_animation_finished)
@@ -129,17 +149,6 @@ func _pose_changed(before: Dictionary, after: Dictionary) -> bool:
 		if after.has(bone_name) and not (before[bone_name] as Transform3D).is_equal_approx(after[bone_name]): return true
 	return false
 
-func _mount_library(source: AnimationLibrary, target_path: String) -> AnimationLibrary:
-	var mounted := AnimationLibrary.new()
-	for clip_name in source.get_animation_list():
-		var clip := source.get_animation(clip_name).duplicate(true) as Animation
-		for track_index in clip.get_track_count():
-			var old_path := str(clip.track_get_path(track_index))
-			var separator := old_path.find(":")
-			if separator >= 0: clip.track_set_path(track_index, NodePath(target_path + old_path.substr(separator)))
-		mounted.add_animation(clip_name, clip)
-	return mounted
-
 func _cancel_action_override_for_rebind() -> void:
 	if not action_override_active:
 		return
@@ -203,6 +212,9 @@ func _update_runtime_snapshot(sample: Dictionary, requested_state: StringName) -
 		"actualAnimationTreeState": String(actual_state),
 		"currentClip": clip,
 		"physicalMovementObserved": sample.get("physicalMovementObserved", false),
+		"restRetargetStatus": "PASS",
+		"restRetargetRotationTracks": _rest_retarget_tracks,
+		"restRetargetRotationKeys": _rest_retarget_keys,
 	}
 	runtime_evidence_changed.emit()
 

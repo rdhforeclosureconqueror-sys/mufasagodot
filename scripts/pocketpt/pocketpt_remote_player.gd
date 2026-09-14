@@ -7,6 +7,7 @@ signal avatar_animation_bound(presence_id: String)
 const LIBRARY_PATH := "res://game/animations/player/player_locomotion_library.tres"
 const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library.tres"
 const TREE_PATH := "res://game/animations/player/player_locomotion_tree.tres"
+const RestRetarget = preload("res://scripts/pocketpt/pocketpt_animation_rest_retarget.gd")
 const MAX_SAFE_SEQUENCE := 9007199254740991.0
 
 @export var position_lerp_speed := 12.0
@@ -120,8 +121,19 @@ func bind_avatar_root(avatar_root: Node3D) -> bool:
 		animation_binding_error = "REMOTE_ANIMATION_RESOURCES_MISSING"
 		return false
 	var target_path := str(avatar_root.get_path_to(skeleton))
-	var mounted_library := _mount_library(source_library, target_path)
-	var mounted_actions := _mount_library(source_actions, target_path)
+	var locomotion_result := RestRetarget.mount_library(source_library, target_path, skeleton)
+	var action_result := RestRetarget.mount_library(source_actions, target_path, skeleton)
+	var retarget_error := str(locomotion_result.get("error", ""))
+	if retarget_error.is_empty():
+		retarget_error = str(action_result.get("error", ""))
+	if not retarget_error.is_empty():
+		animation_binding_error = "REMOTE_REST_RETARGET_FAILED:%s" % retarget_error
+		return false
+	var mounted_library = locomotion_result.get("library") as AnimationLibrary
+	var mounted_actions = action_result.get("library") as AnimationLibrary
+	if mounted_library == null or mounted_actions == null:
+		animation_binding_error = "REMOTE_REST_RETARGET_FAILED:LIBRARY_MISSING"
+		return false
 	_animation_player = AnimationPlayer.new()
 	_animation_player.name = "RemoteLocomotionPlayer"
 	avatar_root.add_child(_animation_player)
@@ -215,18 +227,6 @@ func _on_animation_finished(animation_name: StringName) -> void:
 		if _playback != null:
 			_playback.start(&"IDLE")
 	locomotion = "IDLE"
-
-func _mount_library(source: AnimationLibrary, target_path: String) -> AnimationLibrary:
-	var mounted := AnimationLibrary.new()
-	for clip_name in source.get_animation_list():
-		var clip := source.get_animation(clip_name).duplicate(true) as Animation
-		for track_index in clip.get_track_count():
-			var old_path := str(clip.track_get_path(track_index))
-			var separator := old_path.find(":")
-			if separator >= 0:
-				clip.track_set_path(track_index, NodePath(target_path + old_path.substr(separator)))
-		mounted.add_animation(clip_name, clip)
-	return mounted
 
 func _validate_track_targets() -> String:
 	if _animation_player == null or _active_skeleton == null:
