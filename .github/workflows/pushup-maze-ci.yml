@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "Main.tscn"
+      - "export_presets.cfg"
       - "scripts/games/pushup_maze_practice.gd"
       - "scripts/games/pushup_maze_diagnostic_bridge.gd"
       - "scripts/pocketpt/pocketpt_bootstrap.gd"
