@@ -56,6 +56,19 @@ jobs:
           if old_assert not in text:
               raise SystemExit('expected stale assertion missing')
           test.write_text(text.replace(old_assert, new_assert, 1), encoding='utf-8')
+
+          # A child bone's LOCAL rest may legitimately be identity because its
+          # parent carries the limb orientation. The old test incorrectly
+          # required both forearms to have non-identity local quaternions. The
+          # stronger fixture test added by the patch already compares each arm
+          # and forearm directly against Skeleton3D.get_bone_rest(), which is
+          # the correct contract for animation rotation tracks.
+          arm_test = Path('tests/pocketpt_animation_rest_retarget_test.gd')
+          text = arm_test.read_text(encoding='utf-8')
+          invalid = '''\tfor bone_name in ["LeftArm", "LeftForeArm", "RightArm", "RightForeArm"]:\n\t\tvar q := RestRetarget.canonical_rest_for_bone(bone_name)\n\t\t_expect(absf(q.dot(Quaternion(0.0, 0.0, 0.0, 1.0))) < 0.999, "%s has explicit non-identity canonical rest basis" % bone_name)\n'''
+          if invalid not in text:
+              raise SystemExit('expected obsolete non-identity arm assertion missing')
+          arm_test.write_text(text.replace(invalid, '', 1), encoding='utf-8')
           PY
 
       - name: Download Godot 4.5.1
