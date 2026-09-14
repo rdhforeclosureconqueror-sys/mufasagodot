@@ -8,20 +8,56 @@ var failures: Array[String] = []
 func _initialize() -> void:
 	var root_node := Node3D.new()
 	get_root().add_child(root_node)
+
+	# GymPlayerController resolves these nodes through @onready. Build the same
+	# minimum shape as the existing multiplayer regression before entering tree.
 	var player := PlayerScript.new() as GymPlayerController
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	player.add_child(collision)
+	var spring_arm := SpringArm3D.new()
+	spring_arm.name = "SpringArm3D"
+	player.add_child(spring_arm)
+	var agent := NavigationAgent3D.new()
+	agent.name = "NavigationAgent3D"
+	player.add_child(agent)
+	var avatar_anchor := Node3D.new()
+	avatar_anchor.name = "avataranchor"
+	player.add_child(avatar_anchor)
 	root_node.add_child(player)
+
 	var remote_container := Node3D.new()
+	remote_container.name = "RemotePlayers"
 	root_node.add_child(remote_container)
 	var lobby := LobbyScript.new() as PocketPTLobbyClient
 	root_node.add_child(lobby)
 	lobby.bind(null, player, null, remote_container, null)
+
+	# Build a real authoritative two-player room so diagnostic_snapshot() derives
+	# the remote count from an actual remote puppet rather than test-only state.
+	var snapshot := {
+		"type": "ROOM_SNAPSHOT",
+		"protocolVersion": 1,
+		"roomId": "lions_den",
+		"selfPresenceId": "presence-a",
+		"players": [
+			{
+				"presenceId": "presence-a",
+				"member": {"id": "member-a", "displayName": "Player A"},
+				"avatar": null,
+				"state": {"seq": 0, "position": [0.0, 0.76, 0.0], "yaw": 0.0, "locomotion": "IDLE"}
+			},
+			{
+				"presenceId": "presence-b",
+				"member": {"id": "member-b", "displayName": "Player B"},
+				"avatar": null,
+				"state": {"seq": 0, "position": [3.0, 0.76, 0.0], "yaw": 0.0, "locomotion": "IDLE"}
+			}
+		]
+	}
+	_expect(lobby.accept_server_message_for_test(snapshot), "authoritative room snapshot accepted")
 	lobby.multiplayer_state["connectionState"] = "ACTIVE"
-	lobby.multiplayer_state["roomId"] = "lions_den"
-	lobby.multiplayer_state["selfPresenceId"] = "presence-a"
 	lobby.multiplayer_state["localMemberId"] = "member-a"
-	lobby.multiplayer_state["roomPlayerCount"] = 2
-	lobby.multiplayer_state["remotePlayerCount"] = 1
-	lobby.multiplayer_state["remoteAvatarsLoaded"] = 1
 	lobby.multiplayer_state["stateSendAttempts"] = 12
 	lobby.multiplayer_state["stateSendSuccesses"] = 12
 	lobby.multiplayer_state["lastStateSentSeq"] = 12
