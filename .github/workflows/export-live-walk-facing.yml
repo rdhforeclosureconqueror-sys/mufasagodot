@@ -1,0 +1,101 @@
+name: Export Live Walk Facing Candidate
+
+on:
+  push:
+    branches:
+      - ci/export-live-walk-facing-20260913
+    paths:
+      - .github/workflows/export-live-walk-facing.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: b12f28f365bb5b0b4e5d82146263dcfb68d9bcce
+    steps:
+      - name: Checkout exact reviewed Godot source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Verify source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Download Godot 4.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN="$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.5.1-stable_linux*' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Install Godot Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/godot-templates/templates/. "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/web_release.zip"
+
+      - name: Import project resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Export Web candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/ci-web
+          mkdir -p build/ci-web
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/ci-web/index.html
+          for file in index.html index.js index.pck index.wasm; do test -s "build/ci-web/$file"; done
+
+      - name: Record exact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "godot_source_commit=$SOURCE_SHA"
+            echo "godot_version=4.5.1"
+            echo "preset=Web"
+            echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum build/ci-web/index.html build/ci-web/index.js build/ci-web/index.pck build/ci-web/index.wasm
+          } | tee build/ci-web/BUILD_PROVENANCE.txt
+
+      - name: Publish generated candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B generated/web-candidate
+          git add -f build/ci-web
+          git commit -m "Publish Godot web candidate $SOURCE_SHA"
+          git push origin HEAD:generated/web-candidate --force
+
+      - name: Upload candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-web-candidate-live-walk-facing
+          path: build/ci-web/
+          if-no-files-found: error
+          retention-days: 14
