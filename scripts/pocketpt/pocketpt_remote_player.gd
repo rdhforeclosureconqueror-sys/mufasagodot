@@ -52,6 +52,8 @@ func configure(player_record: Dictionary) -> bool:
 	return not member_id.is_empty()
 
 func apply_network_state(state: Dictionary) -> bool:
+	if sequence_is_stale(state.get("seq")):
+		return true
 	return _apply_state_internal(state, false)
 
 func sequence_is_stale(value: Variant) -> bool:
