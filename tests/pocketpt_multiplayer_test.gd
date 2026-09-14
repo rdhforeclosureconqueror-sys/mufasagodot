@@ -12,6 +12,7 @@ var animator: PocketPTLocomotionAnimator
 var lobby: PocketPTLobbyClient
 var remote_container: Node3D
 var remote_loader: PocketPTRemoteAvatarLoader
+var captured_state_packets: Array[Dictionary] = []
 
 func _initialize() -> void:
 	player = PlayerScript.new()
@@ -47,7 +48,9 @@ func _initialize() -> void:
 func _run() -> void:
 	_test_remote_avatar_contract()
 	_test_local_final_state()
+	_test_authoritative_sample_drives_transport()
 	_test_snapshot_state_leave_reconnect_shape()
+	_test_stale_socket_events_cannot_freeze_live_room()
 
 	if failures.is_empty():
 		print("POCKETPT_MULTIPLAYER_TEST: PASS")
@@ -89,6 +92,32 @@ func _test_local_final_state() -> void:
 		_expect(absf(float(position[0]) - 1.25) < 0.0001 and absf(float(position[1]) - 0.76) < 0.0001 and absf(float(position[2]) + 3.5) < 0.0001, "network position comes from final CharacterBody global position")
 	_expect(absf(float(state.get("yaw", 0.0)) - 0.5) < 0.0001, "network yaw includes controller plus visual-facing yaw")
 	_expect(state.get("locomotion") == "WALK", "network locomotion comes from proven local animator")
+
+func _capture_state_packet(payload: Dictionary) -> bool:
+	captured_state_packets.append(payload.duplicate(true))
+	return true
+
+func _test_authoritative_sample_drives_transport() -> void:
+	captured_state_packets.clear()
+	lobby.set_transport_sender_for_test(_capture_state_packet)
+	lobby.set_transport_ready_for_test(true, 1000)
+	player.global_position = Vector3(2.0, 0.76, -1.0)
+	animator.current_state = &"WALK"
+	var sample := {"physicalMovementObserved": true, "actualHorizontalDisplacement": 0.04, "movementMode": "WALK"}
+	_expect(not lobby.send_authoritative_sample_for_test(sample, 1079), "authoritative state send remains capped below 80 ms")
+	_expect(lobby.send_authoritative_sample_for_test(sample, 1080), "authoritative CharacterBody sample drives state publication at 12.5 Hz")
+	_expect(captured_state_packets.size() == 1, "one outbound packet emitted for one eligible authoritative sample")
+	if captured_state_packets.size() == 1:
+		var packet := captured_state_packets[0]
+		_expect(packet.get("type") == "PLAYER_STATE", "authoritative sample emits PLAYER_STATE")
+		_expect(packet.get("locomotion") == "WALK", "authoritative sample carries current locomotion")
+		var pos = packet.get("position")
+		_expect(pos is Array and absf(float(pos[0]) - 2.0) < 0.0001, "authoritative sample carries live CharacterBody transform")
+	var diagnostics := lobby.diagnostic_snapshot()
+	_expect(int(diagnostics.get("stateSendAttempts", 0)) >= 1, "state send attempts are observable")
+	_expect(int(diagnostics.get("stateSendSuccesses", 0)) >= 1, "state send successes are observable")
+	lobby.set_transport_sender_for_test(Callable())
+	lobby.set_transport_ready_for_test(false)
 
 func _test_snapshot_state_leave_reconnect_shape() -> void:
 	var self_player := _player_record("self-presence", "member-a", "Player A", [1.0, 0.76, 1.0], 0.0, "IDLE", 0)
@@ -161,6 +190,20 @@ func _test_snapshot_state_leave_reconnect_shape() -> void:
 		_expect(reconnected_remote.has_fallback_visual(), "reconnected avatar-less member remains visible")
 	_expect(lobby.remote_player_for_test("remote-presence") == null, "old presence is not resurrected as a ghost")
 	_expect(int(lobby.diagnostic_snapshot().get("remotePlayerCount", 0)) == 1, "reconnect leaves exactly one remote player")
+
+func _test_stale_socket_events_cannot_freeze_live_room() -> void:
+	# Rebuild one remote puppet, then prove a late close event from an older
+	# JavaScript socket generation cannot clear/freeze the active room.
+	var remote_record := _player_record("generation-remote", "member-c", "Player C", [3.0, 0.76, 3.0], 0.0, "IDLE", 0)
+	var snapshot := _json_round_trip({"type":"ROOM_SNAPSHOT", "protocolVersion":1, "roomId":"lions_den", "selfPresenceId":"generation-self", "players":[_player_record("generation-self", "member-a", "Player A", [0.0,0.76,0.0],0.0,"IDLE",0), remote_record]})
+	_expect(lobby.accept_server_message_for_test(snapshot), "generation test snapshot accepted")
+	_expect(lobby.remote_player_for_test("generation-remote") != null, "generation test remote spawned")
+	lobby.set_connection_generation_for_test(9)
+	lobby.accept_browser_event_for_test({"generation":8, "kind":"close", "code":1000, "reason":"old socket"})
+	_expect(lobby.remote_player_for_test("generation-remote") != null, "late close from replaced socket is ignored")
+	lobby.accept_browser_event_for_test({"generation":9, "kind":"close", "code":1006, "reason":"network lost"})
+	_expect(lobby.remote_player_for_test("generation-remote") == null, "current socket close removes stale frozen remote")
+	_expect(int(lobby.diagnostic_snapshot().get("roomPlayerCount", -1)) == 0, "dead transport no longer presents a live room count")
 
 func _player_record(presence_id: String, member_id: String, display_name: String, position: Array, yaw: float, locomotion: String, seq: int) -> Dictionary:
 	return {
