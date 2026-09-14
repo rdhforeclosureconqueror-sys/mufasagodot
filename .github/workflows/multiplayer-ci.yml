@@ -49,17 +49,17 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_remote_player.gd
 
-      - name: Parse lobby client
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_lobby_client.gd
-
-      - name: Import project resources
+      - name: Import project resources and class cache
         shell: bash
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
+
+      - name: Parse lobby client with project classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_lobby_client.gd
 
       - name: Run multiplayer regression
         shell: bash
