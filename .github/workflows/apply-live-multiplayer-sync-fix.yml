@@ -1,0 +1,49 @@
+name: Apply Live Multiplayer Sync Repair
+
+on:
+  push:
+    branches:
+      - fix/live-multiplayer-state-sync-20260914
+    paths:
+      - .github/workflows/apply-live-multiplayer-sync-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/live-multiplayer-state-sync-20260914
+      - name: Repair patch helper typo and apply source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tools/apply_live_multiplayer_sync_fix.py')
+          s = p.read_text()
+          s = s.replace('debug = debug_path.read_text(encoding="utf-8")ndebug_old =', 'debug = debug_path.read_text(encoding="utf-8")\ndebug_old =')
+          p.write_text(s)
+          PY
+          python tools/apply_live_multiplayer_sync_fix.py
+      - name: Guard patch shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'func _on_local_locomotion_sampled(sample: Dictionary)' scripts/pocketpt/pocketpt_lobby_client.gd
+          grep -F 'connectionGeneration' scripts/pocketpt/pocketpt_lobby_client.gd
+          grep -F 'late close from replaced socket is ignored' tests/pocketpt_multiplayer_test.gd
+          git diff --check
+      - name: Commit repaired runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/pocketpt/pocketpt_lobby_client.gd scripts/pocketpt/pocketpt_bridge_debug.gd tests/pocketpt_multiplayer_test.gd
+          git commit -m "Repair live multiplayer state synchronization"
+          git push origin HEAD:fix/live-multiplayer-state-sync-20260914
