@@ -7,6 +7,7 @@ signal avatar_animation_bound(presence_id: String)
 const LIBRARY_PATH := "res://game/animations/player/player_locomotion_library.tres"
 const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library.tres"
 const TREE_PATH := "res://game/animations/player/player_locomotion_tree.tres"
+const MAX_SAFE_SEQUENCE := 9007199254740991.0
 
 @export var position_lerp_speed := 12.0
 @export var yaw_lerp_speed := 14.0
@@ -27,6 +28,7 @@ var _animation_tree: AnimationTree
 var _playback: AnimationNodeStateMachinePlayback
 var _active_skeleton: Skeleton3D
 var _action_override_active := false
+var _fallback_visual: Node3D
 
 func _ready() -> void:
 	if visual_anchor == null:
@@ -34,6 +36,7 @@ func _ready() -> void:
 		visual_anchor.name = "VisualAnchor"
 		visual_anchor.position = Vector3(0.0, -0.75, 0.0)
 		add_child(visual_anchor)
+	ensure_fallback_visual()
 
 func configure(player_record: Dictionary) -> bool:
 	presence_id = str(player_record.get("presenceId", ""))
@@ -42,6 +45,7 @@ func configure(player_record: Dictionary) -> bool:
 		return false
 	member_id = str(member.get("id", ""))
 	display_name = str(member.get("displayName", "Member"))
+	ensure_fallback_visual()
 	var state = player_record.get("state")
 	if state is Dictionary:
 		_apply_state_internal(state, true)
@@ -49,6 +53,48 @@ func configure(player_record: Dictionary) -> bool:
 
 func apply_network_state(state: Dictionary) -> bool:
 	return _apply_state_internal(state, false)
+
+func sequence_is_stale(value: Variant) -> bool:
+	var sequence_value := _sequence_value(value)
+	return sequence_value >= 0 and sequence_value <= last_sequence
+
+func has_fallback_visual() -> bool:
+	return _fallback_visual != null and is_instance_valid(_fallback_visual) and _fallback_visual.visible
+
+func ensure_fallback_visual() -> void:
+	if visual_anchor == null or not is_instance_valid(visual_anchor):
+		return
+	if _fallback_visual != null and is_instance_valid(_fallback_visual):
+		_fallback_visual.visible = true
+		return
+	var fallback := Node3D.new()
+	fallback.name = "RemoteFallbackVisual"
+	visual_anchor.add_child(fallback)
+
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	var body_mesh := CapsuleMesh.new()
+	body_mesh.radius = 0.28
+	body_mesh.height = 1.2
+	body.mesh = body_mesh
+	body.position = Vector3(0.0, 1.35, 0.0)
+	fallback.add_child(body)
+
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.21
+	head_mesh.height = 0.42
+	head.mesh = head_mesh
+	head.position = Vector3(0.0, 2.15, 0.0)
+	fallback.add_child(head)
+
+	_fallback_visual = fallback
+
+func _clear_fallback_visual() -> void:
+	if _fallback_visual != null and is_instance_valid(_fallback_visual):
+		_fallback_visual.queue_free()
+	_fallback_visual = null
 
 func bind_avatar_root(avatar_root: Node3D) -> bool:
 	avatar_loaded = false
@@ -96,6 +142,7 @@ func bind_avatar_root(avatar_root: Node3D) -> bool:
 		return false
 	_playback.start(&"IDLE")
 	avatar_loaded = true
+	_clear_fallback_visual()
 	_apply_locomotion(locomotion)
 	avatar_animation_bound.emit(presence_id)
 	return true
@@ -111,11 +158,11 @@ func _process(delta: float) -> void:
 		remote_moved.emit(presence_id)
 
 func _apply_state_internal(state: Dictionary, snap: bool) -> bool:
-	var sequence = state.get("seq")
+	var sequence_value := _sequence_value(state.get("seq"))
 	var position = state.get("position")
 	var yaw = state.get("yaw")
 	var next_locomotion := str(state.get("locomotion", "IDLE")).to_upper()
-	if typeof(sequence) != TYPE_INT or int(sequence) <= last_sequence:
+	if sequence_value < 0 or sequence_value <= last_sequence:
 		return false
 	if not position is Array or position.size() != 3:
 		return false
@@ -123,7 +170,7 @@ func _apply_state_internal(state: Dictionary, snap: bool) -> bool:
 		return false
 	if next_locomotion not in ["IDLE", "WALK", "RUN", "STOP", "ACTION_OVERRIDE"]:
 		return false
-	last_sequence = int(sequence)
+	last_sequence = sequence_value
 	target_position = Vector3(float(position[0]), float(position[1]), float(position[2]))
 	target_yaw = float(yaw)
 	locomotion = next_locomotion
@@ -196,6 +243,14 @@ func _validate_track_targets() -> String:
 			if target != _active_skeleton or _active_skeleton.find_bone(bone_name) < 0:
 				return "REMOTE_ANIMATION_TRACK_PATH_UNRESOLVED"
 	return ""
+
+func _sequence_value(value: Variant) -> int:
+	if typeof(value) not in [TYPE_INT, TYPE_FLOAT]:
+		return -1
+	var numeric := float(value)
+	if not is_finite(numeric) or numeric < 0.0 or numeric > MAX_SAFE_SEQUENCE or floor(numeric) != numeric:
+		return -1
+	return int(numeric)
 
 func _finite(value: Variant) -> bool:
 	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value))
