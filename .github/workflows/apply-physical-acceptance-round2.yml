@@ -37,6 +37,11 @@ jobs:
           new = 'var ok: bool = event.get("ok") == true'
           if old not in text:
               raise SystemExit('expected bool inference line missing')
+          text = text.replace(old, new, 1)
+          old = '''\tif not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):\n\t\t_record_state_send_result(next_sequence, false, attempt_at_ms, "JAVASCRIPT_BRIDGE_UNAVAILABLE")\n\t\treturn false'''
+          new = '''\tif not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):\n\t\t# Desktop/headless has no browser transport. This is expected and must not\n\t\t# contaminate snapshot/receive diagnostics with a Web-only failure.\n\t\treturn false'''
+          if old not in text:
+              raise SystemExit('expected non-web transport block missing')
           lobby.write_text(text.replace(old, new, 1), encoding='utf-8')
 
           test = Path('tests/pocketpt_multiplayer_test.gd')
