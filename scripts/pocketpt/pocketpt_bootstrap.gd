@@ -1,7 +1,7 @@
 extends Node
 
 const AvatarLoaderScript = preload("res://scripts/pocketpt/pocketpt_avatar_loader.gd")
-const PhoneFlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow.gd")
+const PhoneFlowScript = preload("res://scripts/pocketpt/pocketpt_phone_flow_live_mocap.gd")
 const LocomotionAnimatorScript = preload("res://scripts/pocketpt/pocketpt_locomotion_animator.gd")
 const REMOTE_AVATAR_LOADER_SCRIPT_PATH := "res://scripts/pocketpt/pocketpt_remote_avatar_loader.gd"
 const LOBBY_CLIENT_SCRIPT_PATH := "res://scripts/pocketpt/pocketpt_lobby_client.gd"
