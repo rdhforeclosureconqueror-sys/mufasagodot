@@ -3,7 +3,31 @@ extends Node3D
 func _ready():
 	# The original prototype room remains available below, but the runtime gym
 	# is now built by the isolated GymEnvironment helper.
-	pass
+	_report_main_scene_ready()
+
+func _report_main_scene_ready() -> void:
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		return
+	var payload := {
+		"type": "POCKETPT_GODOT_BRIDGE",
+		"event": "STARTUP_STAGE",
+		"protocolVersion": 1,
+		"stage": "MAIN_SCENE_READY",
+		"status": "PASS"
+	}
+	var serialized_literal := JSON.stringify(JSON.stringify(payload))
+	var script := """
+(() => {
+	try {
+		if (window.parent === window || !window.location.origin) return false;
+		window.parent.postMessage(JSON.parse(%s), window.location.origin);
+		return true;
+	} catch (_error) {
+		return false;
+	}
+})()
+""" % serialized_literal
+	JavaScriptBridge.eval(script)
 
 func create_light():
 	var light = DirectionalLight3D.new()
