@@ -58,6 +58,12 @@ var _intentional_close := false
 var _next_reconnect_at_ms := 0
 var _last_state_received_at_ms := -1
 var _last_state_sent_at_ms := -1
+# Throttle the transport on ATTEMPTS, not acknowledgements. The physical Web
+# failure proved socket.send() can succeed while JavaScriptBridge.eval() does
+# not round-trip a boolean success value. An acknowledgement failure must never
+# turn into an unbounded resend loop / STATE_RATE_LIMIT flood.
+var _last_state_attempt_at_ms := -1
+var _last_state_attempt_seq := 0
 var _connection_generation := 0
 var _transport_sender_for_test: Callable = Callable()
 var _diagnostic_browser_callback = null
@@ -101,7 +107,7 @@ func _process(_delta: float) -> void:
 	# A low-frequency heartbeat protects idle/facing state and also proves that
 	# transport is alive if physics samples temporarily stop. Moving players are
 	# published by _on_local_locomotion_sampled at the normal 12.5 Hz cap.
-	if _connected and _snapshot_received and (_last_state_sent_at_ms < 0 or now_ms - _last_state_sent_at_ms >= HEARTBEAT_SEND_INTERVAL_MS):
+	if _connected and _snapshot_received and (_last_state_attempt_at_ms < 0 or now_ms - _last_state_attempt_at_ms >= HEARTBEAT_SEND_INTERVAL_MS):
 		_send_local_state(now_ms)
 	elif _allow_reconnect and not _connect_in_flight and _next_reconnect_at_ms > 0 and now_ms >= _next_reconnect_at_ms:
 		_next_reconnect_at_ms = 0
@@ -117,7 +123,7 @@ func _on_local_locomotion_sampled(sample: Dictionary) -> void:
 func _maybe_send_authoritative_sample(_sample: Dictionary, now_ms: int) -> bool:
 	if not _connected or not _snapshot_received:
 		return false
-	if _last_state_sent_at_ms >= 0 and now_ms - _last_state_sent_at_ms < SEND_INTERVAL_MS:
+	if _last_state_attempt_at_ms >= 0 and now_ms - _last_state_attempt_at_ms < SEND_INTERVAL_MS:
 		return false
 	return _send_local_state(now_ms)
 
@@ -305,9 +311,13 @@ func set_transport_ready_for_test(value: bool, last_send_ms: int = -1) -> void:
 	_connected = value
 	_snapshot_received = value
 	_last_state_sent_at_ms = last_send_ms
+	_last_state_attempt_at_ms = last_send_ms
 
 func send_authoritative_sample_for_test(sample: Dictionary, now_ms: int) -> bool:
 	return _maybe_send_authoritative_sample(sample, now_ms)
+
+func last_state_attempt_sequence_for_test() -> int:
+	return _last_state_attempt_seq
 
 func set_connection_generation_for_test(value: int) -> void:
 	_connection_generation = maxi(0, value)
@@ -326,6 +336,8 @@ func _on_bootstrap_accepted(payload: Dictionary) -> void:
 	_next_reconnect_at_ms = 0
 	_last_state_received_at_ms = -1
 	_last_state_sent_at_ms = -1
+	_last_state_attempt_at_ms = -1
+	_last_state_attempt_seq = 0
 	var member = payload.get("member")
 	if not member is Dictionary or str(member.get("id", "")).strip_edges().is_empty():
 		_set_first_failure("BOOTSTRAP", "MEMBER_MISSING")
@@ -460,6 +472,8 @@ func _on_browser_lobby_event(args: Array) -> void:
 				_ingest_server_message(payload)
 			else:
 				_set_first_failure("STATE_RECEIVE", "INVALID_SERVER_JSON")
+		"state_send_result":
+			_handle_state_send_result(event)
 		"socket_error":
 			if not _connected:
 				_connect_in_flight = false
@@ -680,44 +694,85 @@ func _on_remote_avatar_failed(presence_id: String, error_code: String) -> void:
 func _on_remote_moved(_presence_id: String) -> void:
 	multiplayer_state["remoteMoveCount"] = int(multiplayer_state.get("remoteMoveCount", 0)) + 1
 
-func _send_local_state(sent_at_ms: int = -1) -> bool:
-	if not _connected or not _snapshot_received or _player == null:
+func _handle_state_send_result(event: Dictionary) -> void:
+	var sequence := int(event.get("seq", 0))
+	var ok: bool = event.get("ok") == true
+	var error_code := str(event.get("errorCode", "WEBSOCKET_SEND_FAILED"))
+	_record_state_send_result(sequence, ok, Time.get_ticks_msec(), error_code)
+
+func _record_state_send_result(sequence: int, success: bool, acknowledged_at_ms: int, error_code: String = "") -> bool:
+	if sequence <= 0 or sequence > _last_state_attempt_seq:
 		return false
-	multiplayer_state["stateSendAttempts"] = int(multiplayer_state.get("stateSendAttempts", 0)) + 1
-	var next_sequence := _local_sequence + 1
-	var payload := _build_local_state(next_sequence)
-	if payload.is_empty():
-		_set_first_failure("STATE_SEND", "LOCAL_STATE_INVALID")
+	if not success:
+		_set_first_failure("STATE_SEND", error_code if not error_code.is_empty() else "WEBSOCKET_SEND_FAILED")
 		return false
-	var sent := false
-	if _transport_sender_for_test.is_valid():
-		sent = bool(_transport_sender_for_test.call(payload.duplicate(true)))
-	else:
-		if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
-			return false
-		var serialized_literal := JSON.stringify(JSON.stringify(payload))
-		var script := """
-(() => {
-	const socket = window.__pocketptGodotLobbySocket;
-	if (!socket || socket.readyState !== WebSocket.OPEN) return false;
-	try {
-		socket.send(%s);
-		return true;
-	} catch (_error) {
-		return false;
-	}
-})()
-""" % serialized_literal
-		sent = JavaScriptBridge.eval(script) == true
-	if not sent:
-		_set_first_failure("STATE_SEND", "WEBSOCKET_SEND_FAILED")
-		return false
-	_local_sequence = next_sequence
-	_last_state_sent_at_ms = sent_at_ms if sent_at_ms >= 0 else Time.get_ticks_msec()
+	# Browser callbacks can arrive out of order. Only the newest acknowledged
+	# sequence advances authoritative diagnostics; duplicate/late acks are safe.
+	if sequence <= _local_sequence:
+		return true
+	_local_sequence = sequence
+	_last_state_sent_at_ms = acknowledged_at_ms
 	multiplayer_state["lastStateSentSeq"] = _local_sequence
 	multiplayer_state["stateSendSuccesses"] = int(multiplayer_state.get("stateSendSuccesses", 0)) + 1
 	multiplayer_state["lastStateSendAtMs"] = _last_state_sent_at_ms
 	_publish()
+	return true
+
+func _send_local_state(sent_at_ms: int = -1) -> bool:
+	if not _connected or not _snapshot_received or _player == null:
+		return false
+	var attempt_at_ms := sent_at_ms if sent_at_ms >= 0 else Time.get_ticks_msec()
+	# Rate-limit attempts before crossing JavaScriptBridge. This is deliberately
+	# independent from acknowledgement success so a broken callback can never
+	# produce thousands of socket.send() calls per second.
+	if _last_state_attempt_at_ms >= 0 and attempt_at_ms - _last_state_attempt_at_ms < SEND_INTERVAL_MS:
+		return false
+	var next_sequence := _last_state_attempt_seq + 1
+	var payload := _build_local_state(next_sequence)
+	if payload.is_empty():
+		_set_first_failure("STATE_SEND", "LOCAL_STATE_INVALID")
+		return false
+	_last_state_attempt_at_ms = attempt_at_ms
+	_last_state_attempt_seq = next_sequence
+	multiplayer_state["stateSendAttempts"] = int(multiplayer_state.get("stateSendAttempts", 0)) + 1
+	if _transport_sender_for_test.is_valid():
+		var sent := bool(_transport_sender_for_test.call(payload.duplicate(true)))
+		return _record_state_send_result(next_sequence, sent, attempt_at_ms, "WEBSOCKET_SEND_FAILED")
+	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+		# Desktop/headless has no browser transport. This is expected and must not
+		# contaminate snapshot/receive diagnostics with a Web-only failure.
+		return false
+	var serialized_literal := JSON.stringify(JSON.stringify(payload))
+	var script := """
+(() => {
+	const socket = window.__pocketptGodotLobbySocket;
+	const callback = window.__pocketptGodotLobbyCallback;
+	const generation = %d;
+	const seq = %d;
+	const report = (ok, errorCode = "") => {
+		if (typeof callback !== "function") return;
+		try { callback(JSON.stringify({generation, kind: "state_send_result", seq, ok, errorCode})); } catch (_error) {}
+	};
+	if (!socket || socket.readyState !== WebSocket.OPEN) {
+		report(false, "SOCKET_NOT_OPEN");
+		return "POCKETPT_SEND_RESULT_REPORTED";
+	}
+	try {
+		socket.send(%s);
+		report(true, "");
+	} catch (_error) {
+		report(false, "WEBSOCKET_SEND_FAILED");
+	}
+	return "POCKETPT_SEND_RESULT_REPORTED";
+})()
+""" % [_connection_generation, next_sequence, serialized_literal]
+	var bridge_result = JavaScriptBridge.eval(script)
+	# The callback is the send-success authority. The sentinel only detects a
+	# script that failed before it could report. Never use JS boolean coercion as
+	# transport truth again; that was the physical STATE_RATE_LIMIT regression.
+	if str(bridge_result) != "POCKETPT_SEND_RESULT_REPORTED" and _local_sequence < next_sequence:
+		_record_state_send_result(next_sequence, false, attempt_at_ms, "JAVASCRIPT_SEND_SCRIPT_FAILED")
+		return false
 	return true
 
 func _build_local_state(sequence: int) -> Dictionary:

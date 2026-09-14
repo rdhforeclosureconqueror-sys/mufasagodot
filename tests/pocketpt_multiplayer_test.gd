@@ -49,6 +49,7 @@ func _run() -> void:
 	_test_remote_avatar_contract()
 	_test_local_final_state()
 	_test_authoritative_sample_drives_transport()
+	_test_failed_transport_attempts_stay_rate_capped()
 	_test_snapshot_state_leave_reconnect_shape()
 	_test_stale_socket_events_cannot_freeze_live_room()
 
@@ -119,7 +120,34 @@ func _test_authoritative_sample_drives_transport() -> void:
 	lobby.set_transport_sender_for_test(Callable())
 	lobby.set_transport_ready_for_test(false)
 
+func _reject_state_packet(_payload: Dictionary) -> bool:
+	return false
+
+func _test_failed_transport_attempts_stay_rate_capped() -> void:
+	lobby.set_transport_sender_for_test(_reject_state_packet)
+	lobby.set_transport_ready_for_test(true, -1)
+	player.global_position = Vector3(2.5, 0.76, -1.0)
+	animator.current_state = &"WALK"
+	var sample := {"physicalMovementObserved": true, "actualHorizontalDisplacement": 0.04, "movementMode": "WALK"}
+	var before_attempts := int(lobby.diagnostic_snapshot().get("stateSendAttempts", 0))
+	_expect(not lobby.send_authoritative_sample_for_test(sample, 2000), "failed transport attempt reports failure")
+	_expect(not lobby.send_authoritative_sample_for_test(sample, 2001), "failed acknowledgement still activates 80 ms attempt cap")
+	_expect(not lobby.send_authoritative_sample_for_test(sample, 2079), "attempt cap survives repeated locomotion samples")
+	_expect(not lobby.send_authoritative_sample_for_test(sample, 2080), "next capped transport attempt can fail without flooding")
+	var after_attempts := int(lobby.diagnostic_snapshot().get("stateSendAttempts", 0))
+	_expect(after_attempts - before_attempts == 2, "80 ms attempt cap limits a failing bridge to 12.5 Hz")
+	_expect(lobby.last_state_attempt_sequence_for_test() >= 2, "attempt sequence advances independently from acknowledgements")
+	lobby.set_transport_sender_for_test(Callable())
+	lobby.set_transport_ready_for_test(false)
+	# Deliberate failure belongs only to this regression.
+	lobby.multiplayer_state["firstFailure"] = "NONE"
+	lobby.multiplayer_state["lastError"] = ""
+
 func _test_snapshot_state_leave_reconnect_shape() -> void:
+	# Prior transport-failure coverage intentionally records FIRST FAILURE. Clear
+	# it so stale-sequence assertions test only the receive path.
+	lobby.multiplayer_state["firstFailure"] = "NONE"
+	lobby.multiplayer_state["lastError"] = ""
 	var self_player := _player_record("self-presence", "member-a", "Player A", [1.0, 0.76, 1.0], 0.0, "IDLE", 0)
 	var remote_player := _player_record("remote-presence", "member-b", "Player B", [4.0, 0.76, 2.0], 0.4, "WALK", 0)
 	var snapshot := _json_round_trip({
@@ -151,7 +179,8 @@ func _test_snapshot_state_leave_reconnect_shape() -> void:
 	})
 	_expect(lobby.accept_server_message_for_test(stale), "stale JSON-parsed network packet is safely ignored")
 	_expect(remote.target_position.distance_to(Vector3(4.0, 0.76, 2.0)) < 0.0001, "stale sequence cannot move remote avatar")
-	_expect(str(lobby.diagnostic_snapshot().get("firstFailure", "NONE")) == "NONE", "stale JSON sequence does not become FIRST FAILURE")
+	var stale_failure := str(lobby.diagnostic_snapshot().get("firstFailure", "NONE"))
+	_expect(stale_failure == "NONE", "stale JSON sequence does not become FIRST FAILURE: %s" % stale_failure)
 
 	var newer := _json_round_trip({
 		"type": "PLAYER_STATE", "protocolVersion": 1, "roomId": "lions_den",
