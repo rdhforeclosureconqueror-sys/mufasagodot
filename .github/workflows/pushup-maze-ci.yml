@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "Main.tscn"
+      - "main.gd"
       - "export_presets.cfg"
       - "scripts/games/pushup_maze_practice.gd"
       - "scripts/games/pushup_maze_diagnostic_bridge.gd"
@@ -50,6 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://main.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_bootstrap.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_practice.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_diagnostic_bridge.gd
