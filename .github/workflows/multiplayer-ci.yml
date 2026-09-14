@@ -9,6 +9,7 @@ on:
       - "scripts/pocketpt/pocketpt_bootstrap.gd"
       - "scripts/pocketpt/pocketpt_bridge_debug.gd"
       - "tests/pocketpt_multiplayer_test.gd"
+      - "tests/pocketpt_multiplayer_diagnostic_payload_test.gd"
       - ".github/workflows/multiplayer-ci.yml"
   workflow_dispatch:
 
@@ -66,6 +67,12 @@ jobs:
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pocketpt_multiplayer_test.gd
+
+      - name: Prove browser multiplayer diagnostic payload contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pocketpt_multiplayer_diagnostic_payload_test.gd
 
       - name: Protect phone control regression
         shell: bash
