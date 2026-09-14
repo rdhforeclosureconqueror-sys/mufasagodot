@@ -47,9 +47,10 @@ static func mount_library(source: AnimationLibrary, target_path: String, target_
 			var key_count := clip.track_get_key_count(track_index)
 			for key_index in key_count:
 				var value = clip.track_get_key_value(track_index, key_index)
-				if not value is Quaternion:
+				if typeof(value) != TYPE_QUATERNION:
 					return _failure("ROTATION_KEY_INVALID:%s" % bone_name)
-				clip.track_set_key_value(track_index, key_index, retarget_rotation_delta(value as Quaternion, source_rest, target_rest))
+				var delta: Quaternion = value
+				clip.track_set_key_value(track_index, key_index, retarget_rotation_delta(delta, source_rest, target_rest))
 				adjusted_keys += 1
 			adjusted_tracks += 1
 		mounted.add_animation(clip_name, clip)
@@ -70,16 +71,16 @@ static func retarget_rotation_delta(delta: Quaternion, source_global_rest: Quate
 static func canonical_rest_for_bone(bone_name: String) -> Quaternion:
 	var profile := _load_profile()
 	if profile.is_empty():
-		return Quaternion.IDENTITY
+		return Quaternion(0.0, 0.0, 0.0, 1.0)
 	var bones = profile.get("bones")
 	if not bones is Dictionary:
-		return Quaternion.IDENTITY
+		return Quaternion(0.0, 0.0, 0.0, 1.0)
 	var record = bones.get(bone_name)
 	if not record is Dictionary:
-		return Quaternion.IDENTITY
+		return Quaternion(0.0, 0.0, 0.0, 1.0)
 	var values = record.get("quaternion")
 	if not values is Array or values.size() != 4:
-		return Quaternion.IDENTITY
+		return Quaternion(0.0, 0.0, 0.0, 1.0)
 	return Quaternion(float(values[0]), float(values[1]), float(values[2]), float(values[3])).normalized()
 
 static func profile_status() -> Dictionary:
