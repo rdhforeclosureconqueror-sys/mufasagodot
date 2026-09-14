@@ -130,8 +130,13 @@ func _start_browser_download(cache_key: String) -> void:
 	try {
 		resolved = new URL(assetUrl, window.location.origin);
 		const keys = Array.from(resolved.searchParams.keys());
+		const prefix = "/api/game/lobby/players/";
+		const suffix = "/avatar";
+		const middle = resolved.pathname.startsWith(prefix) && resolved.pathname.endsWith(suffix)
+			? resolved.pathname.slice(prefix.length, resolved.pathname.length - suffix.length)
+			: "";
 		if (resolved.origin !== window.location.origin ||
-			!/^\/api\/game\/lobby\/players\/[^/]+\/avatar$/.test(resolved.pathname) ||
+			!middle || middle.includes("/") ||
 			resolved.username || resolved.password || resolved.hash ||
 			keys.length !== 1 || keys[0] !== "version" ||
 			resolved.searchParams.get("version") !== version) {
