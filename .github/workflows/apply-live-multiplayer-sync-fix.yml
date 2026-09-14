@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/live-multiplayer-state-sync-20260914
-      - name: Repair patch helper typo and apply source patch
+      - name: Repair patch helper typos and apply source patch
         shell: bash
         run: |
           set -euo pipefail
@@ -27,6 +27,7 @@ jobs:
           p = Path('tools/apply_live_multiplayer_sync_fix.py')
           s = p.read_text()
           s = s.replace('debug = debug_path.read_text(encoding="utf-8")ndebug_old =', 'debug = debug_path.read_text(encoding="utf-8")\ndebug_old =')
+          s = s.replace('ndebug_old', 'debug_old')
           p.write_text(s)
           PY
           python tools/apply_live_multiplayer_sync_fix.py
