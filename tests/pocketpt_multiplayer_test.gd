@@ -93,14 +93,15 @@ func _test_local_final_state() -> void:
 func _test_snapshot_state_leave_reconnect_shape() -> void:
 	var self_player := _player_record("self-presence", "member-a", "Player A", [1.0, 0.76, 1.0], 0.0, "IDLE", 0)
 	var remote_player := _player_record("remote-presence", "member-b", "Player B", [4.0, 0.76, 2.0], 0.4, "WALK", 0)
-	var snapshot := {
+	var snapshot := _json_round_trip({
 		"type": "ROOM_SNAPSHOT",
 		"protocolVersion": 1,
 		"roomId": "lions_den",
 		"selfPresenceId": "self-presence",
 		"players": [self_player, remote_player]
-	}
-	_expect(lobby.accept_server_message_for_test(snapshot), "room snapshot accepted")
+	})
+	_expect(not snapshot.is_empty(), "room snapshot survives JSON wire round trip")
+	_expect(lobby.accept_server_message_for_test(snapshot), "JSON-parsed room snapshot accepted")
 	var diagnostics := lobby.diagnostic_snapshot()
 	_expect(diagnostics.get("selfPresenceId") == "self-presence", "self presence bound from authoritative snapshot")
 	_expect(int(diagnostics.get("roomPlayerCount", 0)) == 2, "room snapshot counts both players")
@@ -110,37 +111,54 @@ func _test_snapshot_state_leave_reconnect_shape() -> void:
 	if remote == null:
 		return
 	_expect(remote.member_id == "member-b", "remote identity is server-stamped member identity")
-	_expect(remote.last_sequence == 0, "initial remote state sequence accepted")
+	_expect(remote.last_sequence == 0, "JSON-parsed initial remote sequence accepted")
 	_expect(remote.global_position.distance_to(Vector3(4.0, 0.76, 2.0)) < 0.0001, "snapshot snaps remote to authoritative initial position")
+	_expect(remote.has_fallback_visual(), "avatar-less remote member has a visible fallback representation")
 
-	var stale := {
+	var stale := _json_round_trip({
 		"type": "PLAYER_STATE", "protocolVersion": 1, "roomId": "lions_den",
 		"presenceId": "remote-presence", "memberId": "member-b",
 		"state": {"seq": 0, "position": [99.0, 0.76, 99.0], "yaw": 2.0, "locomotion": "RUN"}
-	}
-	_expect(lobby.accept_server_message_for_test(stale), "stale network packet is safely ignored")
+	})
+	_expect(lobby.accept_server_message_for_test(stale), "stale JSON-parsed network packet is safely ignored")
 	_expect(remote.target_position.distance_to(Vector3(4.0, 0.76, 2.0)) < 0.0001, "stale sequence cannot move remote avatar")
+	_expect(str(lobby.diagnostic_snapshot().get("firstFailure", "NONE")) == "NONE", "stale JSON sequence does not become FIRST FAILURE")
 
-	var newer := {
+	var newer := _json_round_trip({
 		"type": "PLAYER_STATE", "protocolVersion": 1, "roomId": "lions_den",
 		"presenceId": "remote-presence", "memberId": "member-b",
 		"state": {"seq": 1, "position": [8.0, 0.76, 2.0], "yaw": 1.0, "locomotion": "RUN"}
-	}
-	_expect(lobby.accept_server_message_for_test(newer), "newer network state accepted")
-	_expect(remote.last_sequence == 1 and remote.target_position.distance_to(Vector3(8.0, 0.76, 2.0)) < 0.0001, "new state updates remote target and sequence")
+	})
+	_expect(lobby.accept_server_message_for_test(newer), "newer JSON-parsed network state accepted")
+	_expect(remote.last_sequence == 1 and remote.target_position.distance_to(Vector3(8.0, 0.76, 2.0)) < 0.0001, "new JSON state updates remote target and sequence")
 	var before := remote.global_position
 	remote._process(0.04)
 	_expect(remote.global_position.x > before.x and remote.global_position.x < remote.target_position.x, "remote transform interpolates instead of teleporting")
 
-	var leave := {"type": "PLAYER_LEFT", "protocolVersion": 1, "roomId": "lions_den", "presenceId": "remote-presence", "reason": "DISCONNECTED"}
+	var invalid_fractional := _json_round_trip({
+		"type": "PLAYER_STATE", "protocolVersion": 1, "roomId": "lions_den",
+		"presenceId": "remote-presence", "memberId": "member-b",
+		"state": {"seq": 1.5, "position": [9.0, 0.76, 2.0], "yaw": 1.0, "locomotion": "RUN"}
+	})
+	_expect(not lobby.accept_server_message_for_test(invalid_fractional), "fractional JSON sequence remains invalid")
+	_expect(remote.last_sequence == 1, "invalid fractional sequence cannot advance remote state")
+
+	# Reset diagnostics after the deliberately invalid-packet assertion so leave/reconnect coverage remains independent.
+	lobby.multiplayer_state["firstFailure"] = "NONE"
+	lobby.multiplayer_state["lastError"] = ""
+
+	var leave := _json_round_trip({"type": "PLAYER_LEFT", "protocolVersion": 1, "roomId": "lions_den", "presenceId": "remote-presence", "reason": "DISCONNECTED"})
 	_expect(lobby.accept_server_message_for_test(leave), "PLAYER_LEFT accepted")
 	_expect(lobby.remote_player_for_test("remote-presence") == null, "PLAYER_LEFT despawns remote puppet")
 	_expect(int(lobby.diagnostic_snapshot().get("remotePlayerCount", 0)) == 0, "remote count returns to zero after leave")
 
 	var rejoined := _player_record("remote-presence-2", "member-b", "Player B", [2.0, 0.76, 5.0], -0.5, "IDLE", 0)
-	var join := {"type": "PLAYER_JOINED", "protocolVersion": 1, "roomId": "lions_den", "player": rejoined}
+	var join := _json_round_trip({"type": "PLAYER_JOINED", "protocolVersion": 1, "roomId": "lions_den", "player": rejoined})
 	_expect(lobby.accept_server_message_for_test(join), "reconnected player join accepted")
-	_expect(lobby.remote_player_for_test("remote-presence-2") != null, "reconnect creates one new authoritative presence")
+	var reconnected_remote := lobby.remote_player_for_test("remote-presence-2")
+	_expect(reconnected_remote != null, "reconnect creates one new authoritative presence")
+	if reconnected_remote != null:
+		_expect(reconnected_remote.has_fallback_visual(), "reconnected avatar-less member remains visible")
 	_expect(lobby.remote_player_for_test("remote-presence") == null, "old presence is not resurrected as a ghost")
 	_expect(int(lobby.diagnostic_snapshot().get("remotePlayerCount", 0)) == 1, "reconnect leaves exactly one remote player")
 
@@ -151,6 +169,12 @@ func _player_record(presence_id: String, member_id: String, display_name: String
 		"avatar": null,
 		"state": {"position": position, "yaw": yaw, "locomotion": locomotion, "seq": seq}
 	}
+
+func _json_round_trip(value: Dictionary) -> Dictionary:
+	var parsed = JSON.parse_string(JSON.stringify(value))
+	if parsed is Dictionary:
+		return parsed
+	return {}
 
 func _expect(condition: bool, description: String) -> void:
 	if not condition:
