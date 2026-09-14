@@ -112,8 +112,9 @@ func _run() -> void:
 	var reacquire := _mocap_message("LIVE_MOCAP_ACQUIRE", 6, "timeout-test")
 	reacquire.merge({"restBaseReady": true, "trackingState": "TRACKING"})
 	_expect(flow.ingest_message_for_test(reacquire), "second mocap session can acquire after release")
-	flow._mocap_last_frame_ticks = Time.get_ticks_msec() - FlowScript.MOCAP_TIMEOUT_MS - 1
-	flow._process(0.0)
+	var last_frame_ticks := flow._mocap_last_frame_ticks
+	_expect(not flow._check_mocap_timeout(last_frame_ticks + FlowScript.MOCAP_TIMEOUT_MS), "timeout boundary remains active through configured window")
+	_expect(flow._check_mocap_timeout(last_frame_ticks + FlowScript.MOCAP_TIMEOUT_MS + 1), "stale live pose stream timeout fires deterministically")
 	_expect(not flow._mocap_active, "stale live pose stream releases automatically")
 
 	flow.queue_free()
