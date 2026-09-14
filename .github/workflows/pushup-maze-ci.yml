@@ -22,7 +22,7 @@ permissions:
 jobs:
   pushup-maze-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout Godot project
         uses: actions/checkout@v4
@@ -41,6 +41,21 @@ jobs:
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
           "$GODOT_BIN" --version
 
+      - name: Install Godot Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -o /tmp/templates.tpz \
+            https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R /tmp/godot-templates/templates/. "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/web_release.zip"
+
       - name: Import project resources and class cache
         shell: bash
         run: |
@@ -53,6 +68,7 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://main.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_bootstrap.gd
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_bridge_debug.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_practice.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_diagnostic_bridge.gd
 
@@ -86,3 +102,15 @@ jobs:
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/player_visual_facing_test.gd
+
+      - name: Export Web smoke candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/pr-web-smoke
+          mkdir -p build/pr-web-smoke
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" build/pr-web-smoke/index.html
+          for file in index.html index.js index.pck index.wasm; do
+            test -s "build/pr-web-smoke/$file"
+          done
+          echo "Web export smoke PASS"
