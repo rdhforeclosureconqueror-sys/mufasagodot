@@ -10,6 +10,8 @@ const PROTOCOL_VERSION := 1
 const ROOM_ID := "lions_den"
 const CONFIG_PATH := "/api/game/lobby/config"
 const SEND_INTERVAL_SECONDS := 0.08
+const SEND_INTERVAL_MS := 80
+const HEARTBEAT_SEND_INTERVAL_MS := 500
 const RECONNECT_DELAY_MS := 1200
 const VALID_LOCOMOTION := ["IDLE", "WALK", "RUN", "STOP", "ACTION_OVERRIDE"]
 
@@ -26,6 +28,12 @@ var multiplayer_state: Dictionary = {
 	"lastStateSentSeq": 0,
 	"lastStateReceivedSeq": 0,
 	"lastStateAgeMs": -1,
+	"stateSendAttempts": 0,
+	"stateSendSuccesses": 0,
+	"stateReceiveCount": 0,
+	"remoteMoveCount": 0,
+	"connectionGeneration": 0,
+	"lastStateSendAtMs": -1,
 	"reconnectCount": 0,
 	"firstFailure": "NONE",
 	"lastError": ""
@@ -47,6 +55,9 @@ var _allow_reconnect := true
 var _intentional_close := false
 var _next_reconnect_at_ms := 0
 var _last_state_received_at_ms := -1
+var _last_state_sent_at_ms := -1
+var _connection_generation := 0
+var _transport_sender_for_test: Callable = Callable()
 
 func bind(
 	client: PocketPTGameClient,
@@ -68,18 +79,37 @@ func bind(
 		_remote_avatar_loader.remote_avatar_failed.connect(_on_remote_avatar_failed)
 	if _player == null:
 		_set_first_failure("LOCAL_PLAYER_BIND", "PLAYER_CONTROLLER_MISSING")
+	else:
+		# The local CharacterBody physics loop is already physically proven on phone.
+		# Drive state publication from that authoritative physics sample instead of
+		# relying solely on this optional Node's frame callback.
+		if not _player.locomotion_sampled.is_connected(_on_local_locomotion_sampled):
+			_player.locomotion_sampled.connect(_on_local_locomotion_sampled)
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(true)
 
-func _process(delta: float) -> void:
-	if _connected and _snapshot_received:
-		_send_accumulator += delta
-		if _send_accumulator >= SEND_INTERVAL_SECONDS:
-			_send_accumulator = fmod(_send_accumulator, SEND_INTERVAL_SECONDS)
-			_send_local_state()
-	elif _allow_reconnect and not _connect_in_flight and _next_reconnect_at_ms > 0 and Time.get_ticks_msec() >= _next_reconnect_at_ms:
+func _process(_delta: float) -> void:
+	var now_ms := Time.get_ticks_msec()
+	# A low-frequency heartbeat protects idle/facing state and also proves that
+	# transport is alive if physics samples temporarily stop. Moving players are
+	# published by _on_local_locomotion_sampled at the normal 12.5 Hz cap.
+	if _connected and _snapshot_received and (_last_state_sent_at_ms < 0 or now_ms - _last_state_sent_at_ms >= HEARTBEAT_SEND_INTERVAL_MS):
+		_send_local_state(now_ms)
+	elif _allow_reconnect and not _connect_in_flight and _next_reconnect_at_ms > 0 and now_ms >= _next_reconnect_at_ms:
 		_next_reconnect_at_ms = 0
 		_start_browser_lobby(true)
 	if _last_state_received_at_ms >= 0:
-		multiplayer_state["lastStateAgeMs"] = maxi(0, Time.get_ticks_msec() - _last_state_received_at_ms)
+		multiplayer_state["lastStateAgeMs"] = maxi(0, now_ms - _last_state_received_at_ms)
+
+func _on_local_locomotion_sampled(sample: Dictionary) -> void:
+	_maybe_send_authoritative_sample(sample, Time.get_ticks_msec())
+
+func _maybe_send_authoritative_sample(_sample: Dictionary, now_ms: int) -> bool:
+	if not _connected or not _snapshot_received:
+		return false
+	if _last_state_sent_at_ms >= 0 and now_ms - _last_state_sent_at_ms < SEND_INTERVAL_MS:
+		return false
+	return _send_local_state(now_ms)
 
 func diagnostic_snapshot() -> Dictionary:
 	var snapshot := multiplayer_state.duplicate(true)
@@ -98,6 +128,24 @@ func build_local_state_for_test() -> Dictionary:
 func remote_player_for_test(presence_id: String) -> PocketPTRemotePlayer:
 	return _remote_players.get(presence_id) as PocketPTRemotePlayer
 
+func set_transport_sender_for_test(sender: Callable) -> void:
+	_transport_sender_for_test = sender
+
+func set_transport_ready_for_test(value: bool, last_send_ms: int = -1) -> void:
+	_connected = value
+	_snapshot_received = value
+	_last_state_sent_at_ms = last_send_ms
+
+func send_authoritative_sample_for_test(sample: Dictionary, now_ms: int) -> bool:
+	return _maybe_send_authoritative_sample(sample, now_ms)
+
+func set_connection_generation_for_test(value: int) -> void:
+	_connection_generation = maxi(0, value)
+	multiplayer_state["connectionGeneration"] = _connection_generation
+
+func accept_browser_event_for_test(event: Dictionary) -> void:
+	_on_browser_lobby_event([JSON.stringify(event)])
+
 func _on_bootstrap_accepted(payload: Dictionary) -> void:
 	_shutdown_connection(false)
 	_clear_remote_players()
@@ -107,6 +155,7 @@ func _on_bootstrap_accepted(payload: Dictionary) -> void:
 	_intentional_close = false
 	_next_reconnect_at_ms = 0
 	_last_state_received_at_ms = -1
+	_last_state_sent_at_ms = -1
 	var member = payload.get("member")
 	if not member is Dictionary or str(member.get("id", "")).strip_edges().is_empty():
 		_set_first_failure("BOOTSTRAP", "MEMBER_MISSING")
@@ -122,6 +171,11 @@ func _on_bootstrap_accepted(payload: Dictionary) -> void:
 	multiplayer_state["lastStateSentSeq"] = 0
 	multiplayer_state["lastStateReceivedSeq"] = 0
 	multiplayer_state["lastStateAgeMs"] = -1
+	multiplayer_state["stateSendAttempts"] = 0
+	multiplayer_state["stateSendSuccesses"] = 0
+	multiplayer_state["stateReceiveCount"] = 0
+	multiplayer_state["remoteMoveCount"] = 0
+	multiplayer_state["lastStateSendAtMs"] = -1
 	_publish()
 	if not OS.has_feature("web"):
 		multiplayer_state["transport"] = "WEB_ONLY"
@@ -141,6 +195,8 @@ func _start_browser_lobby(is_reconnect: bool) -> void:
 		_set_first_failure("LOBBY_CONFIG", "WINDOW_UNAVAILABLE")
 		return
 	_connect_in_flight = true
+	_connection_generation += 1
+	multiplayer_state["connectionGeneration"] = _connection_generation
 	if is_reconnect:
 		multiplayer_state["reconnectCount"] = int(multiplayer_state.get("reconnectCount", 0)) + 1
 	multiplayer_state["connectionState"] = "FETCHING_CONFIG"
@@ -151,8 +207,9 @@ func _start_browser_lobby(is_reconnect: bool) -> void:
 	var script := """
 (() => {
 	const callback = window.__pocketptGodotLobbyCallback;
+	const generation = %d;
 	if (typeof callback !== "function") return false;
-	const send = (value) => callback(JSON.stringify(value));
+	const send = (value) => callback(JSON.stringify(Object.assign({generation}, value)));
 	fetch(%s, {
 		method: "GET",
 		credentials: "same-origin",
@@ -193,7 +250,7 @@ func _start_browser_lobby(is_reconnect: bool) -> void:
 	.catch(() => send({kind: "config_error", status: 0, errorCode: "LOBBY_CONFIG_REQUEST_FAILED"}));
 	return true;
 })()
-""" % config_literal
+""" % [_connection_generation, config_literal]
 	if JavaScriptBridge.eval(script) != true:
 		_connect_in_flight = false
 		_set_first_failure("LOBBY_CONFIG", "LOBBY_CONFIG_REQUEST_FAILED")
@@ -203,6 +260,11 @@ func _on_browser_lobby_event(args: Array) -> void:
 		return
 	var event = JSON.parse_string(args[0])
 	if not event is Dictionary:
+		return
+	# Ignore late events from a socket that was replaced by a newer reconnect.
+	# Without this generation guard an old close event can freeze the newly
+	# connected room while leaving its already-mounted remote avatar visible.
+	if int(event.get("generation", -1)) != _connection_generation:
 		return
 	match str(event.get("kind", "")):
 		"config":
@@ -259,6 +321,13 @@ func _handle_socket_close(code: int, reason: String) -> void:
 	_connect_in_flight = false
 	multiplayer_state["connectionState"] = "CLOSED"
 	multiplayer_state["lastError"] = "%d %s" % [code, reason]
+	_last_state_received_at_ms = -1
+	multiplayer_state["lastStateAgeMs"] = -1
+	# A dead transport must never leave a frozen avatar that looks live. The
+	# authoritative reconnect snapshot will respawn current presences.
+	_clear_remote_players()
+	multiplayer_state["selfPresenceId"] = ""
+	multiplayer_state["roomPlayerCount"] = 0
 	_publish()
 	if _intentional_close:
 		return
@@ -367,6 +436,7 @@ func _handle_player_state(payload: Dictionary) -> bool:
 		_set_first_failure("STATE_RECEIVE", "REMOTE_STATE_REJECTED")
 		return false
 	_last_state_received_at_ms = Time.get_ticks_msec()
+	multiplayer_state["stateReceiveCount"] = int(multiplayer_state.get("stateReceiveCount", 0)) + 1
 	multiplayer_state["lastStateReceivedSeq"] = maxi(int(multiplayer_state.get("lastStateReceivedSeq", 0)), remote.last_sequence)
 	multiplayer_state["lastStateAgeMs"] = 0
 	_publish()
@@ -438,21 +508,25 @@ func _on_remote_avatar_failed(presence_id: String, error_code: String) -> void:
 		_client.invalidate_session("ARENA_SESSION_INVALID")
 
 func _on_remote_moved(_presence_id: String) -> void:
-	# Movement itself is visual evidence for the final REMOTE_MOVE stage; diagnostics derive this from state age/count.
-	pass
+	multiplayer_state["remoteMoveCount"] = int(multiplayer_state.get("remoteMoveCount", 0)) + 1
 
-func _send_local_state() -> bool:
+func _send_local_state(sent_at_ms: int = -1) -> bool:
 	if not _connected or not _snapshot_received or _player == null:
 		return false
+	multiplayer_state["stateSendAttempts"] = int(multiplayer_state.get("stateSendAttempts", 0)) + 1
 	var next_sequence := _local_sequence + 1
 	var payload := _build_local_state(next_sequence)
 	if payload.is_empty():
 		_set_first_failure("STATE_SEND", "LOCAL_STATE_INVALID")
 		return false
-	if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
-		return false
-	var serialized_literal := JSON.stringify(JSON.stringify(payload))
-	var script := """
+	var sent := false
+	if _transport_sender_for_test.is_valid():
+		sent = bool(_transport_sender_for_test.call(payload.duplicate(true)))
+	else:
+		if not OS.has_feature("web") or not Engine.has_singleton("JavaScriptBridge"):
+			return false
+		var serialized_literal := JSON.stringify(JSON.stringify(payload))
+		var script := """
 (() => {
 	const socket = window.__pocketptGodotLobbySocket;
 	if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -464,11 +538,15 @@ func _send_local_state() -> bool:
 	}
 })()
 """ % serialized_literal
-	if JavaScriptBridge.eval(script) != true:
+		sent = JavaScriptBridge.eval(script) == true
+	if not sent:
 		_set_first_failure("STATE_SEND", "WEBSOCKET_SEND_FAILED")
 		return false
 	_local_sequence = next_sequence
+	_last_state_sent_at_ms = sent_at_ms if sent_at_ms >= 0 else Time.get_ticks_msec()
 	multiplayer_state["lastStateSentSeq"] = _local_sequence
+	multiplayer_state["stateSendSuccesses"] = int(multiplayer_state.get("stateSendSuccesses", 0)) + 1
+	multiplayer_state["lastStateSendAtMs"] = _last_state_sent_at_ms
 	_publish()
 	return true
 
@@ -554,6 +632,9 @@ func _on_session_ending() -> void:
 	_publish()
 
 func _shutdown_connection(close_browser_socket: bool) -> void:
+	# Invalidate every outstanding browser event before replacing/closing the socket.
+	_connection_generation += 1
+	multiplayer_state["connectionGeneration"] = _connection_generation
 	_connected = false
 	_snapshot_received = false
 	_connect_in_flight = false

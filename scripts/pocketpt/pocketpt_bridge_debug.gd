@@ -130,6 +130,11 @@ REMOTE AVATARS LOADED: %s
 LAST STATE SENT SEQ: %s
 LAST STATE RECEIVED SEQ: %s
 LAST STATE AGE MS: %s
+STATE SEND ATTEMPTS: %s
+STATE SEND SUCCESSES: %s
+STATE RECEIVE COUNT: %s
+REMOTE MOVE COUNT: %s
+CONNECTION GENERATION: %s
 RECONNECT COUNT: %s
 
 FIRST FAILURE: %s""" % [
@@ -149,6 +154,8 @@ FIRST FAILURE: %s""" % [
 		str(multiplayer.get("roomId", "")), str(multiplayer.get("selfPresenceId", "")), str(multiplayer.get("localMemberId", "")),
 		str(multiplayer.get("roomPlayerCount", 0)), str(multiplayer.get("remotePlayerCount", 0)), str(multiplayer.get("remoteAvatarsLoaded", 0)),
 		str(multiplayer.get("lastStateSentSeq", 0)), str(multiplayer.get("lastStateReceivedSeq", 0)), str(multiplayer.get("lastStateAgeMs", -1)),
+		str(multiplayer.get("stateSendAttempts", 0)), str(multiplayer.get("stateSendSuccesses", 0)), str(multiplayer.get("stateReceiveCount", 0)),
+		str(multiplayer.get("remoteMoveCount", 0)), str(multiplayer.get("connectionGeneration", 0)),
 		str(multiplayer.get("reconnectCount", 0)), first_failure,
 	]
 
