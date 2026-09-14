@@ -24,7 +24,20 @@ jobs:
           ref: fix/multiplayer-send-ack-arm-local-rest-20260914
 
       - name: Apply deterministic source repair
-        run: python tools/apply_physical_acceptance_round2.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/apply_physical_acceptance_round2.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/pocketpt/pocketpt_lobby_client.gd')
+          text = path.read_text(encoding='utf-8')
+          old = 'var ok := event.get("ok") == true'
+          new = 'var ok: bool = event.get("ok") == true'
+          if old not in text:
+              raise SystemExit('expected bool inference line missing')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Download Godot 4.5.1
         shell: bash
