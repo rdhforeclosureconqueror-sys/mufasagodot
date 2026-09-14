@@ -61,7 +61,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if autoplay and rep_count < MAX_REPS:
 		autoplay_accumulator += delta
-		var interval := 1.0 / max(autoplay_reps_per_second, 0.1)
+		var interval: float = 1.0 / maxf(autoplay_reps_per_second, 0.1)
 		if autoplay_accumulator >= interval:
 			autoplay_accumulator -= interval
 			simulate_rep()
@@ -182,7 +182,7 @@ func _build_track() -> void:
 	add_child(track_root)
 	var d := 0.0
 	while d < course_length - 0.25:
-		var d2 := min(d + TRACK_SAMPLE_STEP, course_length)
+		var d2: float = minf(d + TRACK_SAMPLE_STEP, course_length)
 		var p1 := route_curve.sample_baked(d, true)
 		var p2 := route_curve.sample_baked(d2, true)
 		var direction := (p2 - p1).normalized()
@@ -256,7 +256,7 @@ func _build_milestones() -> void:
 	root.name = "RepMilestones"
 	add_child(root)
 	for reps in [20, 30, 40, 50, 60]:
-		var distance := min(course_length, float(reps) * distance_per_rep)
+		var distance: float = minf(course_length, float(reps) * distance_per_rep)
 		var p := route_curve.sample_baked(distance, true)
 		var p2 := route_curve.sample_baked(min(distance + 0.7, course_length), true)
 		var direction := (p2 - p).normalized()
@@ -408,7 +408,7 @@ func _update_hud() -> void:
 		status_label.text = "%s · NEXT GATE %d REPS" % ["AUTOPLAY ON" if autoplay else "MANUAL REP MODE", next_target]
 
 func _zone_name(distance: float) -> String:
-	var ratio := distance / max(course_length, 0.001)
+	var ratio: float = distance / maxf(course_length, 0.001)
 	if ratio < 0.34:
 		return "ZONE 1 · SUBWAY GRIND"
 	if ratio < 0.68:
