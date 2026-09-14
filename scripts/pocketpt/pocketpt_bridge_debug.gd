@@ -5,7 +5,7 @@ var client: PocketPTGameClient
 var avatar_loader: Node
 var phone_flow: Node
 var player: GymPlayerController
-var lobby_client: PocketPTLobbyClient
+var lobby_client: Node
 var output: TextEdit
 
 func _ready() -> void:
@@ -52,7 +52,7 @@ func bind_runtime(flow: Node, controller: GymPlayerController) -> void:
 	phone_flow = flow
 	player = controller
 
-func bind_multiplayer(value: PocketPTLobbyClient) -> void:
+func bind_multiplayer(value: Node) -> void:
 	lobby_client = value
 
 func _process(_delta: float) -> void:
@@ -62,7 +62,7 @@ func _process(_delta: float) -> void:
 	var connection: Dictionary = client.connection_state if client != null else {}
 	var flow_state: Dictionary = phone_flow.state if phone_flow != null else {}
 	var avatar: Dictionary = avatar_loader.avatar_state if avatar_loader != null else {}
-	var multiplayer: Dictionary = lobby_client.diagnostic_snapshot() if lobby_client != null else {}
+	var multiplayer: Dictionary = lobby_client.diagnostic_snapshot() if lobby_client != null and lobby_client.has_method("diagnostic_snapshot") else {}
 	var floor_found := not get_tree().get_nodes_in_group("pocketpt_floor_collision").is_empty()
 	var nav_found := not get_tree().get_nodes_in_group("pocketpt_navigation_region").is_empty()
 	var mat_found := not get_tree().get_nodes_in_group("pocketpt_mat_target").is_empty()
