@@ -58,6 +58,10 @@ func _run() -> void:
 	var main_scene := FileAccess.get_file_as_string("res://Main.tscn")
 	_expect(not main_scene.contains("[node name=\"PushUpMazePractice\""), "maze practice must not be a static Main.tscn startup node")
 	_expect(not main_scene.contains("[node name=\"PushUpMazeDiagnosticBridge\""), "maze diagnostics must not be a static Main.tscn startup node")
+	_expect(not main_scene.contains("[node name=\"LearningPoolPreview\""), "learning pool must not be a static Main.tscn startup node")
+	_expect(not main_scene.contains("[node name=\"UnderwaterLearningWorld\""), "underwater learning world must not be a static Main.tscn startup node")
+	_expect(not main_scene.contains("path=\"res://scripts/games/"), "Main.tscn must not statically wire scripts/games; game worlds load only after avatar readiness")
+	_expect(not main_scene.contains("path=\"res://scenes/games/"), "Main.tscn must not statically wire scenes/games; game worlds load only after avatar readiness")
 	_expect(main_scene.contains("[node name=\"PocketPTBootstrap\""), "PocketPT bootstrap remains in the startup scene")
 
 	var bootstrap_source := FileAccess.get_file_as_string("res://scripts/pocketpt/pocketpt_bootstrap.gd")
