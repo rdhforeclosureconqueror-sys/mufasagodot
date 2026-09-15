@@ -8,11 +8,13 @@ on:
       - "export_presets.cfg"
       - "scripts/games/pushup_maze_practice.gd"
       - "scripts/games/pushup_maze_diagnostic_bridge.gd"
+      - "scripts/games/learning_pool_preview.gd"
       - "scripts/pocketpt/pocketpt_bootstrap.gd"
       - "scripts/pocketpt/pocketpt_bridge_debug.gd"
       - "scripts/pocketpt/pocketpt_phone_flow_live_mocap.gd"
       - "tests/pushup_maze_practice_test.gd"
       - "tests/pushup_maze_diagnostic_bridge_test.gd"
+      - "tests/learning_pool_preview_test.gd"
       - "tests/pocketpt_startup_isolation_test.gd"
       - "tests/pocketpt_live_mocap_test.gd"
       - ".github/workflows/pushup-maze-ci.yml"
@@ -64,7 +66,7 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --quit
 
-      - name: Parse startup and maze scripts
+      - name: Parse startup, maze, and learning-pool scripts
         shell: bash
         run: |
           set -euo pipefail
@@ -74,6 +76,7 @@ jobs:
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/pocketpt/pocketpt_phone_flow_live_mocap.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_practice.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/pushup_maze_diagnostic_bridge.gd
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only -s res://scripts/games/learning_pool_preview.gd
 
       - name: Protect startup isolation regression
         shell: bash
@@ -81,12 +84,13 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pocketpt_startup_isolation_test.gd
 
-      - name: Run maze structure regression
+      - name: Run maze and learning-pool structure regressions
         shell: bash
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pushup_maze_practice_test.gd
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/pushup_maze_diagnostic_bridge_test.gd
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" -s res://tests/learning_pool_preview_test.gd
 
       - name: Protect phone control and live mocap regressions
         shell: bash
