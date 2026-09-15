@@ -1,13 +1,17 @@
 class_name PushUpMazeDiagnosticBridge
 extends Node
 
+const UNDERWATER_PREVIEW_SCRIPT_PATH := "res://scripts/games/underwater_learning_preview.gd"
+
 var _practice_game: PushUpMazePractice
 var _phone_flow: Node
 var _last_signature := ""
+var _underwater_preview: Node
 
 func _ready() -> void:
 	name = "PushUpMazeDiagnosticBridge"
 	set_process(true)
+	call_deferred("_mount_underwater_learning_preview")
 
 func _process(_delta: float) -> void:
 	_resolve_dependencies()
@@ -20,6 +24,26 @@ func bind_for_test(practice_game: PushUpMazePractice, phone_flow: Node) -> void:
 
 func report_for_test() -> bool:
 	return _report_if_needed()
+
+func _mount_underwater_learning_preview() -> void:
+	if _underwater_preview != null and is_instance_valid(_underwater_preview):
+		return
+	var scene := get_tree().current_scene
+	if scene == null or scene.get_node_or_null("player") == null:
+		return
+	if scene.get_node_or_null("UnderwaterLearningPreview") != null:
+		_underwater_preview = scene.get_node("UnderwaterLearningPreview")
+		return
+	var preview_script := load(UNDERWATER_PREVIEW_SCRIPT_PATH) as GDScript
+	if preview_script == null:
+		push_error("Underwater learning preview script could not be loaded")
+		return
+	_underwater_preview = preview_script.new() as Node
+	if _underwater_preview == null:
+		push_error("Underwater learning preview could not be instantiated")
+		return
+	_underwater_preview.name = "UnderwaterLearningPreview"
+	scene.add_child(_underwater_preview)
 
 func _resolve_dependencies() -> void:
 	if _practice_game == null or not is_instance_valid(_practice_game):
