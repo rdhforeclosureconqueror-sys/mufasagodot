@@ -1,4 +1,4 @@
-class_name UnderwaterLearningPreview
+﻿class_name UnderwaterLearningPreview
 extends Node3D
 
 signal preview_state_changed(state: Dictionary)
@@ -198,11 +198,12 @@ func _build_reef_world() -> void:
 	_build_treasure_chest()
 	_build_return_gate()
 	_build_fish()
+	_build_unicorn_visual()
 	_build_lighting(reef_blue)
 
 	var title := Label3D.new()
 	title.name = "ReefTitle"
-	title.text = "MAKE 10 REEF\nFIND THE PARTNER • COLLECT THE TREASURE"
+	title.text = "MAKE 10 REEF\nFIND THE PARTNER â€¢ COLLECT THE TREASURE"
 	title.position = Vector3(0.0, 5.2, 23.5)
 	title.font_size = 66
 	title.outline_size = 10
@@ -368,6 +369,52 @@ func _build_fish() -> void:
 		fish.add_child(tail)
 		_fish.append(fish)
 		_fish_bases.append(base)
+
+func _build_unicorn_visual() -> void:
+	var unicorn_path := "res://public/generated/unicorn_FINAL_GODOT.glb"
+
+	if not ResourceLoader.exists(unicorn_path):
+		_set_first_failure("UNICORN_VISUAL", "GLB_NOT_FOUND")
+		return
+
+	var packed := load(unicorn_path) as PackedScene
+
+	if packed == null:
+		_set_first_failure("UNICORN_VISUAL", "GLB_LOAD_FAILED")
+		return
+
+	var instance = packed.instantiate()
+
+	if not (instance is Node3D):
+		if instance != null:
+			instance.queue_free()
+		_set_first_failure("UNICORN_VISUAL", "ROOT_NOT_NODE3D")
+		return
+
+	var unicorn := instance as Node3D
+	unicorn.name = "UnderwaterUnicorn"
+
+	# First visual placement beside Nia's reef entrance.
+	unicorn.position = Vector3(-5.0, 1.10, 18.0)
+
+	# Blender/STL source is large, so start horse-sized.
+	unicorn.scale = Vector3.ONE * 0.028
+
+	_reef_root.add_child(unicorn)
+
+	# Start the first real imported unicorn animation, if one exists.
+	var players := unicorn.find_children("*", "AnimationPlayer", true, false)
+
+	if not players.is_empty():
+		var animation_player := players[0] as AnimationPlayer
+
+		if animation_player != null:
+			for clip_name in animation_player.get_animation_list():
+				if String(clip_name).to_upper().contains("RESET"):
+					continue
+
+				animation_player.play(clip_name)
+				break
 
 func _build_lighting(_reef_material: Material) -> void:
 	var key := DirectionalLight3D.new()
@@ -635,7 +682,7 @@ func _update_hud() -> void:
 	_hud_label.text = "UNDERWATER MAKE-10 TREASURE HUNT\n%s\nAir: %d%% %s | Treasure: %d/%d\nSwim animation: %s | First failure: %s" % [
 		question,
 		int(round(float(state.get("oxygen", OXYGEN_MAX)))),
-		"• SAFE AIR" if bool(state.get("inAirBubble", false)) else "• FIND AIR BUBBLES",
+		"â€¢ SAFE AIR" if bool(state.get("inAirBubble", false)) else "â€¢ FIND AIR BUBBLES",
 		int(state.get("treasure", 0)),
 		PAIR_ROUNDS.size(),
 		str(state.get("swimAnimation", "PENDING")),
