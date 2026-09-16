@@ -33,6 +33,13 @@ func _run() -> void:
 	_expect(component.get_node_or_null("LongASortBox") != null, "long-A sorting box exists")
 	_expect(_count_word_cards() == 20, "twenty lost-word cards are scattered in the reef")
 
+	var plan_card := component.get_node_or_null("PhonicsWord_SHORT_PLAN") as Area3D
+	_expect(plan_card != null, "short-A PLAN card exists")
+	if plan_card != null:
+		# The blocking reef rock spans x=-11.1..-6.9 at z=-3.0.
+		# PLAN's pickup box is 2.05m wide, so its right edge must remain left of -11.1.
+		_expect(plan_card.position.x + 1.025 < -11.1, "PLAN card stays fully clear of blocking reef rock")
+
 	component.call("start_round")
 	_expect(component.call("diagnostic_snapshot").get("status") == "ACTIVE", "phonics timer starts when the round starts")
 
