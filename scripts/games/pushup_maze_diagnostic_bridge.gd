@@ -1,7 +1,7 @@
 class_name PushUpMazeDiagnosticBridge
 extends Node
 
-const UNDERWATER_PREVIEW_SCRIPT_PATH := "res://scripts/games/underwater_learning_preview.gd"
+const UNDERWATER_PREVIEW_SCRIPT_PATH := "res://scripts/games/underwater_vowel_treasure_preview.gd"
 
 var _practice_game: PushUpMazePractice
 var _phone_flow: Node
