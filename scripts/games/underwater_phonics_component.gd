@@ -19,7 +19,7 @@ const WORD_SPAWN_POSITIONS := [
 	Vector3(-4.0, 1.25, -20.0), Vector3(7.0, 1.25, -22.0),
 	Vector3(-14.0, 1.25, 19.0), Vector3(14.0, 1.25, 18.0),
 	Vector3(-2.0, 1.25, 14.0), Vector3(2.0, 1.25, 7.0),
-	Vector3(-10.0, 1.25, -3.0), Vector3(0.0, 1.25, -16.0)
+	Vector3(-13.5, 1.25, -3.0), Vector3(0.0, 1.25, -16.0)
 ]
 
 var state: Dictionary = {
