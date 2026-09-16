@@ -1,4 +1,4 @@
-﻿class_name UnderwaterLearningPreview
+class_name UnderwaterLearningPreview
 extends Node3D
 
 signal preview_state_changed(state: Dictionary)
@@ -203,7 +203,7 @@ func _build_reef_world() -> void:
 
 	var title := Label3D.new()
 	title.name = "ReefTitle"
-	title.text = "MAKE 10 REEF\nFIND THE PARTNER â€¢ COLLECT THE TREASURE"
+	title.text = "MAKE 10 REEF\nFIND THE PARTNER • COLLECT THE TREASURE"
 	title.position = Vector3(0.0, 5.2, 23.5)
 	title.font_size = 66
 	title.outline_size = 10
@@ -682,7 +682,7 @@ func _update_hud() -> void:
 	_hud_label.text = "UNDERWATER MAKE-10 TREASURE HUNT\n%s\nAir: %d%% %s | Treasure: %d/%d\nSwim animation: %s | First failure: %s" % [
 		question,
 		int(round(float(state.get("oxygen", OXYGEN_MAX)))),
-		"â€¢ SAFE AIR" if bool(state.get("inAirBubble", false)) else "â€¢ FIND AIR BUBBLES",
+		"• SAFE AIR" if bool(state.get("inAirBubble", false)) else "• FIND AIR BUBBLES",
 		int(state.get("treasure", 0)),
 		PAIR_ROUNDS.size(),
 		str(state.get("swimAnimation", "PENDING")),
