@@ -39,7 +39,15 @@ func _initialize() -> void:
 func _run() -> void:
 	var initial: Dictionary = preview.call("diagnostic_snapshot")
 	_expect(bool(initial.get("reefReady", false)), "vowel treasure reef reports ready")
-	_expect(initial.get("lessonMode") == "PHONICS_A_SORT", "vowel treasure wrapper selects phonics lesson mode")
+	_expect(initial.get("lessonMode") == "PHONICS_A_SORT", "default vowel config preserves A lesson mode")
+	_expect(initial.get("vowel") == "A", "preview publishes config-driven active vowel")
+	_expect(initial.get("lessonConfigVersion") == 1, "preview publishes lesson config version")
+	_expect(initial.get("wallThemeId") == "underwater_vowel_a_pending_art", "preview publishes wall theme hook")
+	_expect(initial.get("rainbowThemeId") == "shared_rainbow_v1", "preview publishes rainbow theme hook")
+	_expect(initial.get("vowelSelectionSource") == "ACTIVE_PROPERTY", "native preview uses property selection source")
+	_expect(bool(initial.get("wallSlotsReady", false)), "four replaceable vowel wall slots report ready")
+	_expect(int(initial.get("wallSlotCount", 0)) == 4, "preview reserves four wall-art slots")
+	_expect(not bool(initial.get("wallArtApplied", true)), "wall art stays unapplied until approved assets exist")
 	_expect(initial.get("controlMode") == "UNDERWATER_SWIM_OVERRIDE", "phonics preview selects underwater swim presentation")
 	_expect(initial.get("swimAnimation") == "AVAILABLE", "verified swimming animation is available before runtime activation")
 
@@ -55,6 +63,10 @@ func _run() -> void:
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/AIR2") != null, "existing safe air bubble two is preserved")
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/AIR3") != null, "existing safe air bubble three is preserved")
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/UnderwaterUnicorn") != null, "existing unicorn visual is preserved")
+	_expect(preview.get_node_or_null("UnderwaterLearningReef/VowelWallArtFar") != null, "far vowel wall-art slot exists")
+	_expect(preview.get_node_or_null("UnderwaterLearningReef/VowelWallArtNear") != null, "near vowel wall-art slot exists")
+	_expect(preview.get_node_or_null("UnderwaterLearningReef/VowelWallArtLeft") != null, "left vowel wall-art slot exists")
+	_expect(preview.get_node_or_null("UnderwaterLearningReef/VowelWallArtRight") != null, "right vowel wall-art slot exists")
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/NumberPearl_01") == null, "make-ten number pearls are removed from active phonics lesson")
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/Make10TreasureChest") == null, "make-ten treasure chest is removed from active phonics lesson")
 
