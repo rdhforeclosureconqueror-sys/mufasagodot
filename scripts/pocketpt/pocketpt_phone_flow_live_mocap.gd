@@ -82,7 +82,7 @@ func _accept_live_mocap_acquire(message: Dictionary) -> bool:
 	var session_id := str(message.get("mocapSessionId", "")).strip_edges()
 	if session_id.is_empty() or session_id.length() > 128:
 		return false
-	if _locomotion_animator == null or _locomotion_animator.action_override_active:
+	if _locomotion_animator == null or _locomotion_animator.action_override_active or _locomotion_animator.environment_override_active:
 		return false
 	if _locomotion_animator.animation_tree == null or not is_instance_valid(_locomotion_animator.animation_tree):
 		return false
