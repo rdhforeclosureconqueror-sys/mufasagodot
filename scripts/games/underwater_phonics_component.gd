@@ -162,9 +162,10 @@ func _spawn_word_card(word: String, category: String, local_position: Vector3) -
 
 	var visual := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(1.9, 0.95, 0.12)
+	mesh.size = Vector3(1.9, 0.95, 0.05)
 	mesh.material = _card_material()
 	visual.mesh = mesh
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	card.add_child(visual)
 
 	var label := Label3D.new()
@@ -267,13 +268,13 @@ func _build_hud() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "VowelTreasurePanel"
 	panel.position = Vector2(18, 18)
-	panel.custom_minimum_size = Vector2(760, 236)
+	panel.custom_minimum_size = Vector2(650, 190)
 	_hud_layer.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.01, 0.035, 0.09, 0.94)
-	style.border_color = Color(0.95, 0.72, 0.12)
-	style.set_border_width_all(3)
+	style.bg_color = Color(0.02, 0.10, 0.18, 0.58)
+	style.border_color = Color(0.24, 0.92, 1.0, 0.92)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(18)
 	style.content_margin_left = 18.0
 	style.content_margin_right = 18.0
@@ -285,27 +286,27 @@ func _build_hud() -> void:
 	stack.add_theme_constant_override("separation", 4)
 	panel.add_child(stack)
 
-	_title_label = _hud_label("VOWEL TREASURE QUEST", 28, Color(1.0, 0.83, 0.20))
+	_title_label = _hud_label("VOWEL TREASURE QUEST", 24, Color(1.0, 0.82, 0.24))
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_title_label)
 
-	_mission_label = _hud_label("SHORT A  vs  LONG A  •  Find • Carry • Sort", 19, Color(0.62, 0.93, 1.0))
+	_mission_label = _hud_label("SHORT A  vs  LONG A  •  Find • Carry • Sort", 17, Color(0.42, 0.94, 1.0))
 	_mission_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_mission_label)
 
-	_stats_label = _hud_label("", 21, Color.WHITE)
+	_stats_label = _hud_label("", 18, Color(1.0, 0.91, 0.52))
 	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_stats_label)
 
-	_air_label = _hud_label("", 20, Color(0.42, 0.95, 1.0))
+	_air_label = _hud_label("", 18, Color(0.35, 0.96, 1.0))
 	_air_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_air_label)
 
-	_held_label = _hud_label("", 23, Color(1.0, 0.92, 0.46))
+	_held_label = _hud_label("", 20, Color(1.0, 0.62, 0.92))
 	_held_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_held_label)
 
-	_feedback_label = _hud_label("", 18, Color(0.80, 1.0, 0.72))
+	_feedback_label = _hud_label("", 16, Color(0.72, 1.0, 0.68))
 	_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_feedback_label)
@@ -364,12 +365,16 @@ func _format_time(seconds: float) -> String:
 
 func _card_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.07, 0.18, 0.34)
-	material.roughness = 0.45
+
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color(0.05, 0.26, 0.46, 0.42)
+	material.roughness = 0.28
 	material.emission_enabled = true
-	material.emission = Color(0.03, 0.18, 0.30)
-	material.emission_energy_multiplier = 0.65
+	material.emission = Color(0.02, 0.16, 0.30)
+	material.emission_energy_multiplier = 0.45
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+
 	return material
 
 func _material(albedo: Color, emission: Color, emission_energy: float) -> StandardMaterial3D:

@@ -16,6 +16,8 @@ var _playback: AnimationNodeStateMachinePlayback
 var _avatar_root: Node3D
 var active_skeleton: Skeleton3D
 var action_override_active := false
+var environment_override_active := false
+var environment_override_clip := &""
 var binding_error := "AVATAR_SKELETON_NOT_BOUND"
 var _last_pose: Dictionary = {}
 var _observed_states: Dictionary = {}
@@ -85,6 +87,8 @@ func _on_avatar_mounted(avatar_root: Node3D) -> void:
 		runtime_evidence_changed.emit()
 		return
 	_playback.start(&"IDLE")
+	if environment_override_active:
+		_apply_environment_override()
 	avatar_root.set_meta("pocketpt_shared_locomotion", true)
 	set_process(true)
 	runtime_evidence_changed.emit()
@@ -101,6 +105,9 @@ func _process(_delta: float) -> void:
 
 func diagnostic_status(state_name: StringName) -> Dictionary:
 	if not binding_error.is_empty(): return {"status": "FAIL", "reason": binding_error}
+	if environment_override_active:
+		if not _environment_override_is_playing(): return {"status": "FAIL", "reason": "SWIM_OVERRIDE_NOT_PLAYING"}
+		return {"status": "PASS", "reason": ""}
 	var actual_state := StringName(runtime_snapshot.get("actualAnimationTreeState", ""))
 	var requested_state := StringName(runtime_snapshot.get("requestedLocomotionState", ""))
 	var moving := bool(runtime_snapshot.get("physicalMovementObserved", false))
@@ -113,6 +120,9 @@ func diagnostic_status(state_name: StringName) -> Dictionary:
 
 func locomotion_diagnostic_status() -> Dictionary:
 	if not binding_error.is_empty(): return {"status": "FAIL", "reason": binding_error}
+	if environment_override_active:
+		if not _environment_override_is_playing(): return {"status": "FAIL", "reason": "SWIM_OVERRIDE_NOT_PLAYING"}
+		return {"status": "PASS", "reason": ""}
 	var actual_state := StringName(runtime_snapshot.get("actualAnimationTreeState", ""))
 	var requested_state := StringName(runtime_snapshot.get("requestedLocomotionState", ""))
 	var moving := bool(runtime_snapshot.get("physicalMovementObserved", false))
@@ -126,7 +136,7 @@ func _validate_track_targets() -> String:
 	if animation_player == null or active_skeleton == null: return "ANIMATION_PLAYER_NOT_BOUND"
 	var animation_root := animation_player.get_node_or_null(animation_player.root_node)
 	if animation_root == null: return "ANIMATION_PLAYER_NOT_BOUND"
-	for animation_name in [&"player/Idle", &"player/Walk", &"player/Run", &"action/ThrillerPart1"]:
+	for animation_name in [&"player/Idle", &"player/Walk", &"player/Run", &"player/Swimming", &"action/ThrillerPart1"]:
 		var clip := animation_player.get_animation(animation_name)
 		if clip == null: return "ANIMATION_PLAYER_NOT_BOUND"
 		for track_index in clip.get_track_count():
@@ -161,9 +171,77 @@ func _cancel_action_override_for_rebind() -> void:
 	action_override_changed.emit(false)
 
 func can_request_action(semantic_id: StringName) -> bool:
-	if action_override_active or animation_player == null or animation_tree == null or not binding_error.is_empty(): return false
+	if action_override_active or environment_override_active or animation_player == null or animation_tree == null or not binding_error.is_empty(): return false
 	var qualified := StringName(semantic_id if String(semantic_id).begins_with("action/") else "action/" + String(semantic_id))
 	return animation_player.has_animation(qualified)
+
+func set_environment_locomotion_override(semantic_id: StringName) -> bool:
+	if animation_player == null or animation_tree == null or not binding_error.is_empty():
+		return false
+
+	var qualified := StringName(
+		semantic_id
+		if String(semantic_id).begins_with("player/")
+		else "player/" + String(semantic_id)
+	)
+
+	if not animation_player.has_animation(qualified):
+		return false
+
+	environment_override_clip = qualified
+	environment_override_active = true
+
+	if not _apply_environment_override():
+		environment_override_active = false
+		environment_override_clip = &""
+		return false
+
+	return true
+
+func clear_environment_locomotion_override() -> void:
+	environment_override_active = false
+	environment_override_clip = &""
+
+	if animation_player != null and is_instance_valid(animation_player):
+		animation_player.stop()
+
+	if animation_tree != null and is_instance_valid(animation_tree):
+		animation_tree.active = true
+		_playback = animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
+
+		if _playback != null:
+			var restore_state := current_state if current_state in [&"IDLE", &"WALK", &"RUN"] else &"IDLE"
+			_playback.start(restore_state)
+
+	runtime_evidence_changed.emit()
+
+func _apply_environment_override() -> bool:
+	if animation_player == null or animation_tree == null or not binding_error.is_empty():
+		return false
+
+	if not environment_override_active or environment_override_clip == &"":
+		return false
+
+	if not animation_player.has_animation(environment_override_clip):
+		return false
+
+	if action_override_active:
+		_cancel_action_override_for_rebind()
+
+	animation_tree.active = false
+	animation_player.play(environment_override_clip, 0.15)
+
+	runtime_evidence_changed.emit()
+
+	return true
+
+func _environment_override_is_playing() -> bool:
+	return (
+		environment_override_active
+		and animation_player != null
+		and is_instance_valid(animation_player)
+		and animation_player.current_animation == environment_override_clip
+	)
 
 func request_action(semantic_id: StringName) -> bool:
 	if not can_request_action(semantic_id): return false
@@ -185,22 +263,42 @@ func _on_animation_finished(animation_name: StringName) -> void:
 	action_override_changed.emit(false)
 
 func _on_locomotion_sampled(sample: Dictionary) -> void:
-	if action_override_active: return
+	if action_override_active:
+		return
+
 	var actual_displacement := float(sample.get("actualHorizontalDisplacement", 0.0))
 	var movement_mode := str(sample.get("movementMode", "WALK"))
 	var next_state := &"IDLE"
-	if actual_displacement > 0.0005: next_state = &"RUN" if movement_mode == "RUN" else &"WALK"
-	if next_state == &"WALK": _walk_displacement_seen = true
+
+	if actual_displacement > 0.0005:
+		next_state = &"RUN" if movement_mode == "RUN" else &"WALK"
+
+	if next_state == &"WALK":
+		_walk_displacement_seen = true
+
 	if next_state != current_state:
 		current_state = next_state
-		if _playback != null: _playback.travel(current_state)
+
+		if not environment_override_active and _playback != null:
+			_playback.travel(current_state)
+
+	if environment_override_active and not _environment_override_is_playing():
+		_apply_environment_override()
+
 	_update_runtime_snapshot(sample, next_state)
 
 func _update_runtime_snapshot(sample: Dictionary, requested_state: StringName) -> void:
 	var actual_state := StringName("UNBOUND")
-	if _playback != null: actual_state = _playback.get_current_node()
+
+	if environment_override_active:
+		actual_state = &"SWIMMING"
+	elif _playback != null:
+		actual_state = _playback.get_current_node()
+
 	var clip := _clip_for_state(actual_state)
-	if action_override_active and animation_player != null: clip = str(animation_player.current_animation)
+
+	if (action_override_active or environment_override_active) and animation_player != null:
+		clip = str(animation_player.current_animation)
 	runtime_snapshot = {
 		"controlAction": sample.get("controlAction", "NONE"),
 		"requestedDirection": sample.get("requestedDirection", Vector2.ZERO),
