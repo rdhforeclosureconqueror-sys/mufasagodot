@@ -12,7 +12,7 @@ func _run() -> void:
 	var machine := load(TREE_PATH) as AnimationNodeStateMachine
 	var preview_scene := load(PREVIEW_PATH) as PackedScene
 	if library == null or machine == null or preview_scene == null: return _fail("RESOURCES")
-	for clip_name in [&"Idle", &"Walk", &"Run"]:
+	for clip_name in [&"Idle", &"Walk", &"Run", &"Swimming"]:
 		if not library.has_animation(clip_name): return _fail("CLIP_%s" % clip_name)
 		var clip := library.get_animation(clip_name)
 		if clip.loop_mode != Animation.LOOP_LINEAR: return _fail("LOOP_%s" % clip_name)
@@ -48,6 +48,32 @@ func _run() -> void:
 	if animator.current_state != &"RUN": return _fail("RUNTIME_RUN")
 	animator._on_locomotion_sampled({"actualHorizontalDisplacement":0.0, "movementMode":"RUN"})
 	if animator.current_state != &"IDLE": return _fail("RUNTIME_STOP_IDLE")
+
+	if not animator.set_environment_locomotion_override(&"Swimming"):
+		return _fail("SWIM_OVERRIDE_START")
+
+	if not animator.environment_override_active:
+		return _fail("SWIM_OVERRIDE_NOT_ACTIVE")
+
+	if animator.animation_player.current_animation != &"player/Swimming":
+		return _fail("SWIM_CLIP_NOT_PLAYING")
+
+	animator._on_locomotion_sampled({
+		"actualHorizontalDisplacement":0.08,
+		"movementMode":"WALK"
+	})
+
+	if animator.current_state != &"WALK":
+		return _fail("SWIM_NETWORK_STATE_NOT_WALK")
+
+	if animator.animation_player.current_animation != &"player/Swimming":
+		return _fail("SWIM_OVERRIDE_DROPPED")
+
+	animator.clear_environment_locomotion_override()
+
+	if animator.environment_override_active:
+		return _fail("SWIM_OVERRIDE_STUCK")
+
 	var override_events: Array[bool] = []
 	animator.action_override_changed.connect(func(active: bool): override_events.append(active))
 	if not animator.request_action(&"ThrillerPart1"): return _fail("ACTION_START")

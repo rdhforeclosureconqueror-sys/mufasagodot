@@ -40,8 +40,15 @@ func _run() -> void:
 	var initial: Dictionary = preview.call("diagnostic_snapshot")
 	_expect(bool(initial.get("reefReady", false)), "vowel treasure reef reports ready")
 	_expect(initial.get("lessonMode") == "PHONICS_A_SORT", "vowel treasure wrapper selects phonics lesson mode")
-	_expect(initial.get("controlMode") == "EXISTING_LOCOMOTION", "phonics preview preserves existing avatar locomotion")
-	_expect(initial.get("swimAnimation") == "PENDING", "phonics preview does not pretend a swim animation exists")
+	_expect(initial.get("controlMode") == "UNDERWATER_SWIM_OVERRIDE", "phonics preview selects underwater swim presentation")
+	_expect(initial.get("swimAnimation") == "AVAILABLE", "verified swimming animation is available before runtime activation")
+
+	var locomotion_library := load("res://game/animations/player/player_locomotion_library.tres") as AnimationLibrary
+
+	_expect(
+		locomotion_library != null and locomotion_library.has_animation(&"Swimming"),
+		"shared locomotion library contains verified Swimming clip"
+	)
 	_expect(initial.get("firstFailure") == "NONE", "vowel treasure preview starts with no structural first failure")
 	_expect(preview.get_node_or_null("UnderwaterLearningEntryGate") != null, "existing gym-to-reef portal is preserved")
 	_expect(preview.get_node_or_null("UnderwaterLearningReef/AIR1") != null, "existing safe air bubble one is preserved")

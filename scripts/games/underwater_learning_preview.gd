@@ -154,7 +154,7 @@ func _build_reef_world() -> void:
 	_reef_root.position = REEF_ORIGIN
 	add_child(_reef_root)
 
-	var sand := _material(Color(0.35, 0.31, 0.20), Color(0.03, 0.08, 0.08), 0.25)
+	var sand := _material(Color(0.78, 0.68, 0.46), Color(0.10, 0.075, 0.035), 0.18)
 	var rock := _material(Color(0.08, 0.12, 0.14), Color(0.0, 0.12, 0.14), 0.25)
 	var reef_blue := _material(Color(0.04, 0.24, 0.28), Color(0.0, 0.38, 0.45), 0.55)
 	var coral := _material(Color(0.55, 0.12, 0.22), Color(0.55, 0.04, 0.20), 0.9)

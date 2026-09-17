@@ -9,6 +9,9 @@ const ACTION_LIBRARY_PATH := "res://game/animations/player/player_action_library
 const TREE_PATH := "res://game/animations/player/player_locomotion_tree.tres"
 const RestRetarget = preload("res://scripts/pocketpt/pocketpt_animation_rest_retarget.gd")
 const MAX_SAFE_SEQUENCE := 9007199254740991.0
+const UNDERWATER_REEF_MIN_Z := -151.5
+const UNDERWATER_REEF_MAX_Z := -98.5
+const UNDERWATER_REEF_MAX_X := 18.0
 
 @export var position_lerp_speed := 12.0
 @export var yaw_lerp_speed := 14.0
@@ -29,6 +32,7 @@ var _animation_tree: AnimationTree
 var _playback: AnimationNodeStateMachinePlayback
 var _active_skeleton: Skeleton3D
 var _action_override_active := false
+var _environment_swim_active := false
 var _fallback_visual: Node3D
 
 func _ready() -> void:
@@ -198,24 +202,64 @@ func _apply_state_internal(state: Dictionary, snap: bool) -> bool:
 func _apply_locomotion(value: String) -> void:
 	if not avatar_loaded or _playback == null or _animation_tree == null:
 		return
+
+	if (
+		_inside_underwater_reef()
+		and _animation_player != null
+		and _animation_player.has_animation(&"player/Swimming")
+	):
+		if _action_override_active:
+			_animation_player.stop()
+			_action_override_active = false
+
+		_environment_swim_active = true
+		_animation_tree.active = false
+
+		if _animation_player.current_animation != &"player/Swimming":
+			_animation_player.play(&"player/Swimming", 0.15)
+
+		return
+
+	if _environment_swim_active:
+		_animation_player.stop()
+		_environment_swim_active = false
+		_animation_tree.active = true
+		_playback = _animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
+
 	var normalized := value.to_upper()
+
 	if normalized == "STOP":
 		normalized = "IDLE"
+
 	if normalized == "ACTION_OVERRIDE":
-		# Protocol v1 carries only ACTION_OVERRIDE. ThrillerPart1 is currently the arena's sole authored action.
-		if not _action_override_active and _animation_player != null and _animation_player.has_animation(&"action/ThrillerPart1"):
+		if (
+			not _action_override_active
+			and _animation_player != null
+			and _animation_player.has_animation(&"action/ThrillerPart1")
+		):
 			_action_override_active = true
 			_animation_tree.active = false
 			_animation_player.play(&"action/ThrillerPart1", 0.15)
+
 		return
+
 	if _action_override_active:
 		_animation_player.stop()
 		_action_override_active = false
 		_animation_tree.active = true
 		_playback = _animation_tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
+
 	if normalized not in ["IDLE", "WALK", "RUN"]:
 		normalized = "IDLE"
+
 	_playback.travel(StringName(normalized))
+
+func _inside_underwater_reef() -> bool:
+	return (
+		target_position.z >= UNDERWATER_REEF_MIN_Z
+		and target_position.z <= UNDERWATER_REEF_MAX_Z
+		and absf(target_position.x) <= UNDERWATER_REEF_MAX_X
+	)
 
 func _on_animation_finished(animation_name: StringName) -> void:
 	if not _action_override_active or not String(animation_name).begins_with("action/"):
@@ -234,7 +278,7 @@ func _validate_track_targets() -> String:
 	var animation_root := _animation_player.get_node_or_null(_animation_player.root_node)
 	if animation_root == null:
 		return "REMOTE_ANIMATION_PLAYER_NOT_BOUND"
-	for animation_name in [&"player/Idle", &"player/Walk", &"player/Run", &"action/ThrillerPart1"]:
+	for animation_name in [&"player/Idle", &"player/Walk", &"player/Run", &"player/Swimming", &"action/ThrillerPart1"]:
 		var clip := _animation_player.get_animation(animation_name)
 		if clip == null:
 			return "REMOTE_ANIMATION_CLIP_MISSING"

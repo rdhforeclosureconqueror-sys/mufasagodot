@@ -7,6 +7,8 @@ var _phonics_component: Node3D
 func _ready() -> void:
 	state["lessonMode"] = "PHONICS_A_SORT"
 	state["phonics"] = {}
+	state["controlMode"] = "UNDERWATER_SWIM_OVERRIDE"
+	state["swimAnimation"] = "AVAILABLE"
 	super._ready()
 
 func _build_entry_gate() -> void:
@@ -53,8 +55,12 @@ func _validate_structure() -> void:
 
 func _enter_reef() -> bool:
 	var entered := super._enter_reef()
+
 	if not entered:
 		return false
+
+	_set_swim_override(true)
+
 	if _hud_layer != null:
 		_hud_layer.visible = false
 	if _phonics_component != null and is_instance_valid(_phonics_component):
@@ -68,6 +74,9 @@ func _enter_reef() -> bool:
 func _return_to_gym() -> void:
 	if _phonics_component != null and is_instance_valid(_phonics_component):
 		_phonics_component.call("pause_round")
+
+	_set_swim_override(false)
+
 	super._return_to_gym()
 	if _hud_layer != null:
 		_hud_layer.visible = false
@@ -100,6 +109,37 @@ func _remove_make10_assets() -> void:
 	if chest != null:
 		_reef_root.remove_child(chest)
 		chest.queue_free()
+
+func _set_swim_override(enabled: bool) -> bool:
+	var animator := get_tree().root.find_child(
+		"PocketPTLocomotionAnimator",
+		true,
+		false
+	)
+
+	if animator == null:
+		state["swimAnimation"] = "AVAILABLE"
+		return false
+
+	if enabled:
+		var activated := bool(
+			animator.call(
+				"set_environment_locomotion_override",
+				&"Swimming"
+			)
+		)
+
+		state["swimAnimation"] = "ACTIVE" if activated else "AVAILABLE"
+
+		if activated:
+			state["lastEvent"] = "UNDERWATER_SWIM_ACTIVE"
+
+		return activated
+
+	animator.call("clear_environment_locomotion_override")
+	state["swimAnimation"] = "AVAILABLE"
+
+	return true
 
 func _on_phonics_state_changed(snapshot: Dictionary) -> void:
 	state["phonics"] = snapshot.duplicate(true)
