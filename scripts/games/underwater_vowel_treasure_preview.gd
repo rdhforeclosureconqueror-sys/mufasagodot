@@ -7,6 +7,7 @@ var active_vowel := VowelCatalog.DEFAULT_VOWEL
 var _lesson_config: Dictionary = {}
 var _vowel_selection_source := "ACTIVE_PROPERTY"
 var _phonics_component: Node3D
+var _vowel_selector: OptionButton
 
 func _ready() -> void:
 	var selected_vowel := _resolve_active_vowel()
@@ -30,6 +31,36 @@ func _ready() -> void:
 	state["swimAnimation"] = "AVAILABLE"
 
 	super._ready()
+	_build_in_world_vowel_selector()
+
+func _build_in_world_vowel_selector() -> void:
+	if _hud_layer == null:
+		return
+	_vowel_selector = OptionButton.new()
+	_vowel_selector.name = "UnderwaterVowelSelector"
+	_vowel_selector.position = Vector2(24.0, 24.0)
+	_vowel_selector.size = Vector2(210.0, 52.0)
+	_vowel_selector.add_item("Vowel A")
+	_vowel_selector.add_item("Vowel E")
+	_vowel_selector.add_item("Vowel I")
+	_vowel_selector.add_item("Vowel O")
+	_vowel_selector.add_item("Vowel U")
+	var vowels := ["A", "E", "I", "O", "U"]
+	var selected := vowels.find(str(_lesson_config.get("vowel", "A")))
+	_vowel_selector.select(maxi(selected, 0))
+	_vowel_selector.visible = false
+	_vowel_selector.item_selected.connect(_on_vowel_selected)
+	_hud_layer.add_child(_vowel_selector)
+
+func _on_vowel_selected(index: int) -> void:
+	var vowels := ["A", "E", "I", "O", "U"]
+	if index < 0 or index >= vowels.size():
+		return
+	var next_vowel: String = vowels[index]
+	if next_vowel == str(_lesson_config.get("vowel", "A")):
+		return
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.location.search='?vowel=%s'" % next_vowel, true)
 
 func _resolve_active_vowel() -> String:
 	var requested := active_vowel.strip_edges().to_upper()
@@ -106,6 +137,8 @@ func _enter_reef() -> bool:
 
 	if _hud_layer != null:
 		_hud_layer.visible = false
+	if _vowel_selector != null:
+		_vowel_selector.visible = true
 	if _phonics_component != null and is_instance_valid(_phonics_component):
 		_phonics_component.call("set_oxygen", float(state.get("oxygen", OXYGEN_MAX)))
 		_phonics_component.call("start_round")
@@ -119,6 +152,8 @@ func _return_to_gym() -> void:
 		_phonics_component.call("pause_round")
 
 	_set_swim_override(false)
+	if _vowel_selector != null:
+		_vowel_selector.visible = false
 
 	super._return_to_gym()
 	if _hud_layer != null:
