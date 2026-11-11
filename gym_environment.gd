@@ -1,9 +1,9 @@
 extends Node3D
 
-const BRAND_RED := Color(0.92, 0.06, 0.08)
+const BRAND_RED := Color(0.81, 0.67, 0.36) # Retained identifier for legacy movement-zone fixtures
 const CHARCOAL := Color(0.035, 0.04, 0.05)
-const RUBBER := Color(0.055, 0.06, 0.07)
-const WALL := Color(0.72, 0.74, 0.76)
+const RUBBER := Color(0.055, 0.12, 0.095)
+const WALL := Color(0.12, 0.25, 0.19)
 const STEEL := Color(0.14, 0.16, 0.18)
 
 var status_label: Label
@@ -65,10 +65,10 @@ func _build_environment() -> void:
 	env_node.name = "GymWorldEnvironment"
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.025, 0.028, 0.035)
+	env.background_color = Color(0.035, 0.095, 0.075)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.48, 0.52, 0.60)
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color(0.66, 0.78, 0.61)
+	env.ambient_light_energy = 0.72
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env_node.environment = env
 	add_child(env_node)
@@ -86,17 +86,17 @@ func _build_environment() -> void:
 	floor_collision.position = Vector3(0, -0.12, 0)
 	floor_body.add_child(floor_collision)
 
-	var stripe_material := _material(Color(0.095, 0.10, 0.115), 0.0, 0.88)
+	var stripe_material := _material(Color(0.13, 0.22, 0.17), 0.0, 0.88)
 	for x in range(-8, 9):
 		if x % 2 == 0:
 			_box("FloorMatStripe_%d" % x, Vector3(0.025, 0.008, 13.5), Vector3(float(x), 0.01, 0), stripe_material)
 
-	var ceiling_material := _material(CHARCOAL, 0.15, 0.82)
+	var ceiling_material := _material(Color(0.045, 0.105, 0.08), 0.15, 0.82)
 	_box("CharcoalCeiling", Vector3(18.0, 0.25, 14.0), Vector3(0, 5.9, 0), ceiling_material)
 	var wall_material := _material(WALL, 0.0, 0.78)
 	_box("BrandWall", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, -7.0), wall_material)
 	_box("RightWall", Vector3(0.25, 6.0, 14.0), Vector3(9.0, 2.9, 0), wall_material)
-	_box("EntryWall", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, 7.0), _material(Color(0.60, 0.62, 0.65), 0.0, 0.75))
+	_box("EntryWall", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, 7.0), _material(Color(0.17, 0.30, 0.23), 0.0, 0.75))
 	_add_boundary_collision("BrandWallCollision", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, -7.0))
 	_add_boundary_collision("RightWallCollision", Vector3(0.25, 6.0, 14.0), Vector3(9.0, 2.9, 0))
 	_add_boundary_collision("EntryWallCollision", Vector3(18.0, 6.0, 0.25), Vector3(0, 2.9, 7.0))
@@ -112,18 +112,19 @@ func _build_environment() -> void:
 	_build_dumbbell_rack(Vector3(5.9, 0, 3.0))
 	_build_mat_area(Vector3(2.6, 0, 3.7))
 	_build_scoreboard()
+	_build_community_lounge()
 	_build_camera()
 
 func _build_ceiling_lights() -> void:
-	var panel_material := _material(Color(0.9, 0.94, 1.0), 0.0, 0.15, Color(0.9, 0.95, 1.0), 5.0)
+	var panel_material := _material(Color(1.0, 0.82, 0.55), 0.0, 0.2, Color(0.95, 0.67, 0.32), 1.5)
 	for x in [-5.5, 0.0, 5.5]:
 		for z in [-3.8, 0.0, 3.8]:
 			_box("CeilingLight", Vector3(2.6, 0.08, 0.65), Vector3(x, 5.72, z), panel_material)
 			var light := OmniLight3D.new()
 			light.name = "CeilingOmni"
 			light.position = Vector3(x, 5.45, z)
-			light.light_color = Color(0.86, 0.91, 1.0)
-			light.light_energy = 1.45
+			light.light_color = Color(1.0, 0.79, 0.57)
+			light.light_energy = 1.1
 			light.omni_range = 7.0
 			light.shadow_enabled = x == 0.0 and z == 0.0
 			add_child(light)
@@ -131,7 +132,7 @@ func _build_ceiling_lights() -> void:
 	var key := DirectionalLight3D.new()
 	key.name = "GymKeyLight"
 	key.rotation_degrees = Vector3(-55, -25, 0)
-	key.light_color = Color(1.0, 0.93, 0.86)
+	key.light_color = Color(1.0, 0.87, 0.70)
 	key.light_energy = 0.65
 	key.shadow_enabled = true
 	add_child(key)
@@ -184,9 +185,9 @@ func _build_brand_wall() -> void:
 	var backing := _box("BrandSignBacking", Vector3(8.2, 3.8, 0.16), Vector3(0, 3.0, -6.78), _material(Color(0.025, 0.028, 0.035), 0.25, 0.38))
 	var accent := _box("BrandAccent", Vector3(8.4, 0.10, 0.09), Vector3(0, 0.98, -6.65), _material(BRAND_RED, 0.15, 0.3, BRAND_RED, 2.5))
 	var label := Label3D.new()
-	label.name = "UnleashDaBeastSign"
-	label.text = "UNLEASH\nDA\nBEAST"
-	label.font_size = 96
+	label.name = "MileleCommunityWelcomeSign"
+	label.text = "MILELE FIT\nCOMMUNITY LOUNGE"
+	label.font_size = 72
 	label.outline_size = 12
 	label.modulate = Color.WHITE
 	label.outline_modulate = Color(0.05, 0.05, 0.06)
@@ -196,7 +197,7 @@ func _build_brand_wall() -> void:
 	add_child(label)
 	var sub := Label3D.new()
 	sub.name = "BrandTagline"
-	sub.text = "TRAIN • TEST • TRANSFORM"
+	sub.text = "CONNECT  •  BREATHE  •  BELONG"
 	sub.font_size = 42
 	sub.modulate = BRAND_RED
 	sub.position = Vector3(0, 1.42, -6.60)
@@ -293,12 +294,66 @@ func _build_scoreboard() -> void:
 	_box("Scoreboard", Vector3(3.1, 1.45, 0.12), Vector3(5.3, 3.7, -6.72), _material(Color(0.015, 0.018, 0.022), 0.3, 0.28))
 	var title := Label3D.new()
 	title.name = "ScoreboardText"
-	title.text = "MOVEMENT LAB\nREADY  •  00:00"
+	title.text = "WELLNESS CORNER\nYOGA  •  SOUND  •  BREATH"
 	title.font_size = 48
-	title.modulate = Color(0.20, 1.0, 0.55)
+	title.modulate = Color(0.92, 0.79, 0.51)
 	title.position = Vector3(5.3, 3.72, -6.62)
 	title.pixel_size = 0.005
 	add_child(title)
+
+# Furniture is decorative in V1. Keep existing navigation mesh, player collision,
+# training mat target, personalized avatar, multiplayer and world bridge unchanged.
+# Positions leave the central (-4..4) corridor and arrival marker usable.
+func _build_community_lounge() -> void:
+	var emerald := _material(Color(0.055, 0.25, 0.18), 0.0, 0.85)
+	var velvet := _material(Color(0.085, 0.35, 0.25), 0.0, 0.94)
+	var gold := _material(Color(0.78, 0.62, 0.32), 0.65, 0.32)
+	var timber := _material(Color(0.26, 0.15, 0.09), 0.0, 0.82)
+	var leaf := _material(Color(0.10, 0.39, 0.21), 0.0, 0.92)
+	var pot := _material(Color(0.42, 0.30, 0.21), 0.0, 0.83)
+	# A seating cluster by the left-front wall, clear of the middle walkway.
+	var social := Node3D.new()
+	social.name = "CommunitySocialSeating"
+	add_child(social)
+	_box("SoftRug", Vector3(4.1, 0.02, 3.0), Vector3(-5.8, 0.025, 4.45), _material(Color(0.21, 0.30, 0.23), 0.0, 0.95), social)
+	_box("SofaSeat", Vector3(3.0, 0.42, 0.84), Vector3(-5.8, 0.49, 5.45), velvet, social)
+	_box("SofaBack", Vector3(3.0, 0.92, 0.28), Vector3(-5.8, 0.93, 5.94), emerald, social)
+	for x in [-7.2, -4.4]:
+		_box("SofaArm", Vector3(0.24, 0.63, 0.95), Vector3(x, 0.65, 5.45), emerald, social)
+	_box("CoffeeTableTop", Vector3(1.65, 0.12, 0.85), Vector3(-5.8, 0.55, 3.9), timber, social)
+	for x in [-6.42, -5.18]:
+		_box("CoffeeTableLeg", Vector3(0.09, 0.48, 0.09), Vector3(x, 0.28, 3.9), gold, social)
+	# Botanical accents anchor the room without placing physics obstacles in paths.
+	for position in [Vector3(-7.7, 0.0, 3.1), Vector3(-7.5, 0.0, -4.75), Vector3(7.4, 0.0, 5.3)]:
+		_cylinder("Planter", 0.30, 0.58, position + Vector3(0, 0.29, 0), pot)
+		_cylinder("PlantStem", 0.055, 1.0, position + Vector3(0, 1.0, 0), timber)
+		for offset in [Vector3(-0.24, 1.4, 0), Vector3(0.24, 1.52, 0.12), Vector3(0, 1.72, -0.18)]:
+			_sphere("PlantLeaves", 0.40, position + offset, leaf)
+	# Meditation and sound bowls; the established workout mat remains available.
+	var calm := Node3D.new()
+	calm.name = "CommunityWellnessNook"
+	add_child(calm)
+	_box("MeditationRug", Vector3(3.1, 0.035, 1.8), Vector3(-5.6, 0.035, -3.9), emerald, calm)
+	for x in [-6.45, -5.5, -4.55]:
+		_cylinder("SoundBowl", 0.29, 0.16, Vector3(x, 0.17, -4.5), gold, calm)
+		_box("MeditationCushion", Vector3(0.66, 0.16, 0.60), Vector3(x, 0.13, -3.5), velvet, calm)
+	# A compact tea bar near the side wall retains unobstructed navigation.
+	var bar := Node3D.new()
+	bar.name = "CommunityTeaBar"
+	add_child(bar)
+	_box("TeaBarCounter", Vector3(2.2, 0.16, 0.75), Vector3(7.45, 1.06, 0.9), timber, bar)
+	_box("TeaBarFront", Vector3(2.2, 0.95, 0.17), Vector3(7.45, 0.53, 1.23), emerald, bar)
+	for x in [6.9, 7.45, 8.0]:
+		_cylinder("TeaCup", 0.12, 0.20, Vector3(x, 1.24, 0.9), gold, bar)
+	# Purely informational signage; member profiles are never projected here.
+	var welcome := Label3D.new()
+	welcome.name = "CommunityConnectSign"
+	welcome.text = "WELCOME IN  •  FIND YOUR CIRCLE"
+	welcome.font_size = 42
+	welcome.pixel_size = 0.005
+	welcome.modulate = Color(0.96, 0.83, 0.57)
+	welcome.position = Vector3(-5.3, 2.5, -6.62)
+	add_child(welcome)
 
 func _build_camera() -> void:
 	var camera := Camera3D.new()
